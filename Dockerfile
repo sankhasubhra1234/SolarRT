@@ -1,13 +1,32 @@
 # Production image for the SolarRT website/API server (used by deploy/docker-compose.yml).
-FROM python:3.13-slim
+# During CI this is built with Python 3.13; release builds should pin the digest.
+FROM python:3.13-slim@sha256:b1a7c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b as builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     SOLARRT_HOST=0.0.0.0 SOLARRT_PORT=8000 \
     SOLARRT_DATA_DIR=/data SOLARRT_ENABLE_DOCS=0
 
 WORKDIR /app
-# Exact, audited versions (see requirements.txt / docs/SECURITY.md)
-RUN pip install --no-cache-dir fastapi==0.163.1 "uvicorn[standard]==0.54.0" httpx==0.28.1 sgp4==2.27
+# Install build dependencies first (kept separate for cache invalidation)
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential gcc && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install from hashed lock file
+COPY requirements.txt .
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+
+# Copy application source
+COPY solarrt ./solarrt
+
+# Runtime stage - lean image
+FROM python:3.13-slim@sha256:b1a7c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    SOLARRT_HOST=0.0.0.0 SOLARRT_PORT=8000 \
+    SOLARRT_DATA_DIR=/data SOLARRT_ENABLE_DOCS=0
+
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 COPY solarrt ./solarrt
 
 # Run as an unprivileged user; /data holds feedback (mounted volume)
