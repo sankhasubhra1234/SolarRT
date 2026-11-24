@@ -1,0 +1,32 @@
+# Dependabot configuration for SolarRT
+# See https://docs.github.com/en/dependabot/dependabot-version-updates for more info
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-labels: [" Dependabot"]
+    allow:
+      - pull-request labels: [" Dependabot"]
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-labels: [" Dependabot"]
+    groups:
+      main:
+        update-type: "minor"
+        commit-message:
+          "chore: update dependencies"
+      dev:
+        update-type: "patch"
+        commit-message:
+          "chore: dev deps update"
+    allow:
+      - pull-request labels: [" Dependabot"]
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-labels: [" Dependabot"]
