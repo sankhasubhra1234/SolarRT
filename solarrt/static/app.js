@@ -1,7 +1,6 @@
 /* SolarRT web client: aurora map, Kp panel, location & regional activity. */
 (() => {
   "use strict";
-
   const KP_REFRESH_MS = 60_000;
   const AURORA_REFRESH_MS = 5 * 60_000;
   const STORE_KEY = "solarrt.location.v1";
@@ -1060,6 +1059,7 @@
       await showLocation({ ...home, source: home.source === "ip" ? "ip" : "saved" }, true);
     } else {
       showNoLocation();
+      await window.solarEntranceFinished;
       openWelcome(); // first visit: ask the user how to find their location
     }
     await kp;

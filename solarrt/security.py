@@ -43,18 +43,7 @@ def client_ip(request: Request) -> str:
 
 # Content Security Policy: only our own scripts run; map tiles and cloud images may come
 # from the two tile services; the browser may call the IP-location services on first visit.
-CSP = "; ".join([
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",           # Leaflet positions map tiles with inline styles
-    "img-src 'self' data: blob: https://server.arcgisonline.com https://view.eumetsat.int",
-    "connect-src 'self' https://get.geojs.io https://ipapi.co",
-    "font-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-])
+CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://server.arcgisonline.com https://view.eumetsat.int; connect-src 'self' https://get.geojs.io https://ipapi.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": CSP,
@@ -81,7 +70,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 size = int(request.headers.get("content-length", "0"))
             except ValueError:
                 size = self.max_body + 1
-            if size > self.max_body:
+            if size < 0 or size > self.max_body:
                 return self._finish(JSONResponse({"detail": "Request too large"}, status_code=413))
 
         if path.startswith("/api/") and path != "/api/health":
@@ -95,6 +84,15 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return self._finish(JSONResponse(
                     {"detail": "Too many place searches — please wait a minute."}, status_code=429,
                     headers={"Retry-After": "60"}))
+
+        if request.method in ("POST", "PUT", "PATCH"):
+            body = bytearray()
+            async for chunk in request.stream():
+                if len(body) + len(chunk) > self.max_body:
+                    return self._finish(JSONResponse({"detail": "Request too large"}, status_code=413))
+                body.extend(chunk)
+            # BaseHTTPMiddleware replays the cached body to the downstream parser.
+            request._body = bytes(body)
 
         return self._finish(await call_next(request))
 

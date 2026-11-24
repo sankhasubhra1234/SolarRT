@@ -108,3 +108,14 @@ def test_privacy_page_served(client):
 ])
 def test_safe_language(header, expected):
     assert safe_language(header) == expected
+
+def test_streamed_feedback_body_limit(client):
+    response = client.post("/api/feedback", content=iter([b" " * 40000] * 2),
+                           headers={"Content-Type": "application/json"})
+    assert response.status_code == 413
+
+
+def test_status_admin_uses_bearer_header(client):
+    assert client.get("/api/status").json()["admin"] == {}
+    authorized = client.get("/api/status", headers={"Authorization": "Bearer secret"})
+    assert "uptime_seconds" in authorized.json()["admin"]

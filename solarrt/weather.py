@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
+import defusedxml
+import defusedxml.ElementTree as ET
+
+defusedxml.defuse_stdlib()
 
 from .noaa import sky_darkness, sun_elevation
 
@@ -83,7 +87,7 @@ def summarize_weather(data: dict[str, Any], lat: float, lon: float,
             "visibility": vis,
             "precipitation": cur.get("precipitation"),
             "temperature": cur.get("temperature_2m"),
-            "condition": WMO.get(cur.get("weather_code"), "—"),
+            "condition": WMO.get(cur.get("weather_code", -1), "—"),
             "sky": sky_quality(cloud, vis),
         },
         "darkness": sky_darkness(elev_now),

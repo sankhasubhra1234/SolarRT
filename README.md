@@ -1,5 +1,7 @@
 # SolarRT 2
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A live aurora and geomagnetic-activity monitor that runs as a website and as an installable Windows desktop app.
 
 - **Regional aurora activity**: NOAA's OVATION aurora forecast drawn on an interactive world map, plus a ranked list of aurora-viewing regions (Alaska, Canada, Scandinavia, UK & Ireland, New Zealand, Tasmania…).

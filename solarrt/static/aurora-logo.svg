@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+path{transform-origin:center;animation:sway 4s ease-in-out infinite alternate}
+path+path{animation: sway 3s ease-in-out infinite alternate-reverse}
+@keyframes sway{from{transform:skewY(-5deg) scaleY(.9);opacity:.75}to{transform:skewY(5deg) scaleY(1.04);opacity:1}}
+@media(prefers-reduced-motion:reduce){path{animation:none}}
+</style><defs>
+    <linearGradient id="a" x1="0" x2="1">
+      <stop offset="0" stop-color="#77ffc8"/>
+      <stop offset="1" stop-color="#ae88ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0b1220"/>
+  <path d="M6 44c10-14 20-22 28-22s16 6 24 14" fill="none" stroke="url(#a)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M10 52c9-9 17-14 24-14s13 4 20 9" fill="none" stroke="#77ffc8" stroke-opacity=".55" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="48" cy="14" r="4" fill="#ffd166"/>
+</svg>

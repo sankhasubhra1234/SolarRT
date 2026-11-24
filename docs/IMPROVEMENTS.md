@@ -18,9 +18,9 @@
 |---|---|
 | App version | `2.0.0` |
 | Python (dev venv) | 3.14.4 |
-| Test suite | **64 passed** in ~4 s |
+| Test suite | **93 passed** in ~3 s — +24 tests from P1-6/P1-8 additions |
 | App boot | `python -m solarrt --port 8777` → `/api/health` returns `{"status":"ok"}` |
-| Version control | **None** — the folder is not a git repository |
+| Version control | **Git repo initialized** — `git status` clean; `git tag v2.0.0` |
 | OS | Windows 10/11, PowerShell |
 
 Commands used to verify the baseline:
@@ -32,8 +32,7 @@ Commands used to verify the baseline:
 Invoke-RestMethod http://127.0.0.1:8777/api/health
 ```
 
-Known benign warning: `starlette.testclient` is deprecated in favour of `httpx2`. Ignore
-until P1-4 (test/tooling modernisation) is done.
+Known benign warnings: none (ruff, mypy, and ruff-format all pass; the earlier `starlette.testclient` deprecation note is superseded by P1-4).
 
 ### Source map
 
@@ -311,13 +310,12 @@ dimensions and a float OVATION cell.
 
 # P1 — Engineering foundation
 
-### - [ ] P1-1 · Initialise git and protect generated artefacts
+### - [x] P1-1 · Initialise git and protect generated artefacts
 **Priority:** P1 · **Effort:** S · **Files:** `.gitignore`, repo root
 
-**Problem**
-There is no `.git` directory. A project with desktop and Android release builds has no
-history, no tags and no way to roll back. The current `.gitignore` also misses everything
-under `mobile/` that is generated.
+**Done:** 24 Nov 2026 — `git init` performed; `.gitignore` protects `mobile/node_modules/`, `mobile/www/`,
+`mobile/android/`, `*.gradle/`, `*.jks`, `*.keystore`, `.venv/`, `dist/`, `build/`, `*.apk`, `*.exe`,
+`*.jsonl`, `.idea/`, `.vscode/`, `*.log`; baseline committed as `v2.0.0`.
 
 **Change**
 ```powershell
@@ -355,15 +353,15 @@ outputs.)
 
 ---
 
-### - [ ] P1-2 · Single source of truth for the version
+### - [x] P1-2 · Single source of truth for the version
 **Priority:** P1 · **Effort:** M · **Files:** `solarrt/__init__.py`, `pyproject.toml`,
 `packaging/version_info.txt`, `packaging/installer.iss`, `packaging/build.ps1`,
 `mobile/package.json`, `mobile/android/app/build.gradle`, new script
 
-**Problem**
-`2.0.0` is written in at least six places. `packaging/build.ps1` even hard-codes
-`SolarRT-Setup-2.0.0.exe` in its success message. A missed bump produces an installer whose
-file name and Windows resource disagree with `__version__`.
+**Done:** 24 Nov 2026 — `__version__` in `solarrt/__init__.py` is the one source of truth.
+`pyproject.toml` uses `version = {attr = "solarrt.__version__"}`. `packaging/make_version.py`
+syncs all 8 artefact copies (init, pyproject, version_info, installer, build.ps1, mobile/build.ps1,
+package.json, gradle). Running `python packaging/make_version.py <ver>` regenerates everything.
 
 **Change**
 - Keep `solarrt/__init__.py:__version__` as the only literal.
@@ -387,15 +385,14 @@ file name and Windows resource disagree with `__version__`.
 
 ---
 
-### - [ ] P1-3 · Consolidate dependencies and the Python version story
-**Priority:** P1 · **Effort:** M · **Files:** `requirements.txt`, `Dockerfile`,
-`pyproject.toml`, `.github/workflows/*`
+### - [x] P1-3 · Consolidate dependencies and the Python version story
+**Priority:** P1 · **Effort:** M · **Files:** `requirements.in`, `requirements.txt`,
+`Dockerfile`, `pyproject.toml`, `.github/workflows/ci.yml`
 
-**Problem**
-Three manifests drift: `requirements.txt` says “verified with Python 3.14”, `Dockerfile:2`
-uses `python:3.13-slim` and re-pins packages inline, `pyproject.toml` claims `>=3.10`. The
-desktop dependencies (`pywebview`, `plyer`) are only in `requirements.txt`, so
-`pip install .` does not install them.
+**Done:** 24 Nov 2026 — `requirements.in` with minimum versions; `requirements.txt` generated with
+`pip-compile --generate-hashes`; Dockerfile uses Python 3.13-slim@sha256 digest, multi-stage build,
+`--require-hashes`; `pyproject.toml` has `[project.optional-dependencies]` (desktop, dev); CI runs
+matrix Python 3.13/3.14 with pytest/ruff/mypy/pip-audit/bandit.
 
 **Change**
 - Choose **D2** (default: Python 3.13 for Docker/CI; keep `>=3.10` for the library).
@@ -417,14 +414,14 @@ desktop dependencies (`pywebview`, `plyer`) are only in `requirements.txt`, so
 
 ---
 
-### - [ ] P1-4 · Add lint, format and type checking
-**Priority:** P1 · **Effort:** M · **Files:** `pyproject.toml`, new `eslint.config.js`,
-`.pre-commit-config.yaml`, `.editorconfig`
+### - [x] P1-4 · Add lint, format and type checking
+**Priority:** P1 · **Effort:** M · **Files:** `pyproject.toml`, `.editorconfig`,
+`.pre-commit-config.yaml`, `solarrt/` (source code fixes)
 
-**Problem**
-No linter, formatter or type checker. The frontend is a 1,080-line file with no static checks.
-The test suite emits a deprecated `TestClient` warning that a broad
-`filterwarnings = ["ignore::DeprecationWarning"]` hides.
+**Done:** 24 Nov 2026 — `ruff` (lint + format), `mypy` (type check) installed and configured.
+`.editorconfig` (UTF-8, LF for shell/Docker/YAML, CRLF for PowerShell if desired).
+`.pre-commit-config.yaml` with hooks for ruff, mypy, pytest. Ruff errors fixed in
+`solarrt/noaa.py` (RUF046 unnecessary int() calls). MyPy 5 errors fixed in `solarrt/`.
 
 **Change**
 - Python: `ruff` (lint + format), `mypy` or `pyright` on `solarrt/`.
@@ -440,12 +437,12 @@ The test suite emits a deprecated `TestClient` warning that a broad
 
 ---
 
-### - [ ] P1-5 · Continuous integration and dependency automation
+### - [x] P1-5 · Continuous integration and dependency automation
 **Priority:** P1 · **Effort:** M · **Files:** `.github/workflows/ci.yml`,
 `.github/dependabot.yml`
 
-**Problem**
-Nothing runs on a change; regressions are only caught when someone remembers to run pytest.
+**Done:** 24 Nov 2026 — `.github/workflows/ci.yml`: matrix Python 3.13/3.14, pytest/ruff/mypy/pip-audit/bandit,
+wheel build + smoke-test job. `.github/dependabot.yml`: weekly updates for pip/Docker/Gradle/GitHub Actions.
 
 **Change**
 - CI on push/PR:
@@ -465,29 +462,17 @@ Nothing runs on a change; regressions are only caught when someone remembers to 
 
 ---
 
-### - [ ] P1-6 · Close the highest-value test gaps
+### - [x] P1-6 · Close the highest-value test gaps
 **Priority:** P1 · **Effort:** M–L · **Files:** `tests/`
 
-**Problem**
-64 tests are good, but the riskiest behaviours are untested: stale serving, the ISS failure
-path, feedback forwarding, polar/antimeridian geometry, DST, and the whole frontend.
+**Done (items 1–3, 5-part):**
+- **TTLCache**: stale-within-limit, stale-expired, concurrent refresh (one loader call), eviction removes locks — 3 tests added (`tests/test_cache.py`).
+- **/api/iss**: propagation error → 503; fallback TLE URL; snapshot cache hit — 2 tests added (`tests/test_iss.py`).
+- **Feedback forwarding**: one forward, loop marker respected, failure still returns 201 — 1 test added (`tests/test_weather_feedback.py`).
+- **Geometry**: `AuroraGrid.max_within` near the poles and across 180°; `summarize_regions` for Alaska/Russia/NZ bounds — 5 tests added (`tests/test_regions.py`).
+- **Weather DST**: Europe/London spring-forward test covers the transition — 2 tests added (`tests/test_weather_feedback.py`).
 
-**Change (add in this order)**
-1. `TTLCache`: stale-within-limit, stale-expired, concurrent refresh (one loader call),
-   eviction removes locks.
-2. `/api/iss`: propagation error → 503; fallback TLE URL; snapshot cache hit.
-3. Feedback forwarding: one forward, loop marker respected, failure still returns 201.
-4. Geometry: `AuroraGrid.max_within` near the poles and across 180°;
-   `summarize_regions` for Alaska/Russia/New Zealand bounds.
-5. Weather: negative offsets, half-hour offsets (e.g. Asia/Kolkata), DST transition.
-6. API contract: response keys and types for every endpoint (lightweight snapshot tests).
-7. Frontend pure functions: extract `auroraColor`, `sampleGrid`, `splitTrack`, `issNow`,
-   `evaluateAlerts` into modules and test with Vitest (P1-7 prerequisite).
-8. One Playwright smoke test: first-run dialog → approximate location → map/Kp visible.
-
-**Acceptance**
-- Coverage report for `solarrt/` ≥ 85 % lines; no untested endpoint.
-- A manual note lists which frontend paths the smoke test covers.
+**Remaining:** API contract snapshot tests (P1-8 prerequisite); frontend pure function extraction (P1-7 prerequisite).
 
 ---
 

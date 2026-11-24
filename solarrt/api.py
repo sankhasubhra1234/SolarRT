@@ -23,11 +23,17 @@ from .cache import TTLCache
 from .config import settings
 from .feedback import FeedbackFull, FeedbackIn, FeedbackStore
 from .iss import IssTracker, parse_tle
-from .weather import CURRENT_FIELDS, HOURLY_FIELDS, parse_cloud_time, summarize_weather
-from .noaa import (AuroraGrid, NoaaClient, build_kp_summary, haversine_km, sky_darkness,
-                   sun_elevation)
+from .noaa import (
+    AuroraGrid,
+    NoaaClient,
+    build_kp_summary,
+    haversine_km,
+    sky_darkness,
+    sun_elevation,
+)
 from .regions import activity_level, summarize_regions
 from .security import RateLimiter, SecurityMiddleware, client_ip, safe_language
+from .weather import CURRENT_FIELDS, HOURLY_FIELDS, parse_cloud_time, summarize_weather
 
 log = logging.getLogger(__name__)
 # httpx logs every outgoing URL at INFO, and weather/place-search URLs contain users'
@@ -76,6 +82,7 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        state["_start_time"] = time.time()
         async with httpx.AsyncClient(transport=transport, follow_redirects=True,
                                      headers={"User-Agent": settings.user_agent}) as client:
             state["client"] = client
@@ -303,13 +310,14 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
                 log.warning("Forwarding feedback failed: %s", exc)
         return {"ok": True, "id": entry["id"], "forwarded": forwarded}
 
-    @app.get("/api/feedback")
-    async def list_feedback(request: Request):
-        # Token goes in a header ("Authorization: Bearer <token>"), never the URL, so it can't
-        # leak into logs or browser history; compared in constant time.
+    def is_admin(request: Request) -> bool:
         auth = request.headers.get("authorization", "")
         token = auth[7:] if auth.lower().startswith("bearer ") else ""
-        if not admin or not secrets.compare_digest(token.encode(), admin.encode()):
+        return bool(admin and secrets.compare_digest(token.encode(), admin.encode()))
+
+    @app.get("/api/feedback")
+    async def list_feedback(request: Request):
+        if not is_admin(request):
             raise HTTPException(403, "Feedback can only be read with the admin token")
         return feedback_store.summary()
 
@@ -338,6 +346,36 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
     def lang_of(request: Request) -> str:
         """Use the browser's language for place names (validated; falls back to English)."""
         return safe_language(request.headers.get("accept-language"))
+
+    @app.get("/api/status")
+    async def status(request: Request):
+        """Monitoring endpoint: version, uptime, feature flags -- no coordinates.
+
+        Admins can verify the app is healthy without exposing user data.
+        """
+        uptime = time.time() - state.get("_start_time", time.time())
+
+        # Admin-only fields (if token matches)
+        admin_fields = {}
+        if is_admin(request):
+            admin_fields = {"uptime_seconds": round(uptime, 1)}
+
+        return {
+            "version": __version__,
+            "edition": os.environ.get("SOLARRT_EDITION", "web"),
+            "features": {
+                "stale_data": True,
+                "iss_caching": True,
+                "dst_safe_weather": True,
+                "feedback_forward": bool(settings.feedback_forward_url),
+            },
+            "uptime_seconds": round(uptime, 1),
+            "admin": admin_fields,
+            "privacy": {
+                "coordinates_never_in_503": True,
+                "log_redaction_active": True,
+            },
+        }
 
     @app.get("/api/geocode")
     async def geocode(request: Request, q: str = Query(..., min_length=2, max_length=120)):

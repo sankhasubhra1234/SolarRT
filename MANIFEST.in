@@ -1,0 +1,6 @@
+# SolarRT MANIFEST.in - ensure static files are included in sdist/wheel
+recursive-include solarrt/static *
+recursive-include solarrt/templates *
+include solarrt/__init__.py
+include pyproject.toml
+include README.md

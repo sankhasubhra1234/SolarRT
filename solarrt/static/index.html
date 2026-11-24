@@ -11,12 +11,20 @@
   <script src="/static/theme-init.js"></script>
 </head>
 <body>
+  <dialog id="auroraEntrance" aria-label="SolarRT introduction">
+    <canvas id="auroraSky" aria-hidden="true"></canvas>
+    <div class="entrance-brand">
+      <img src="/static/aurora-logo.svg" width="70" height="70" alt="">
+      <strong>SolarRT</strong><span>Aurora &amp; geomagnetic activity</span>
+    </div>
+    <button id="skipEntrance">Skip intro</button>
+  </dialog>
   <header class="topbar">
     <div class="brand">
-      <img src="/static/favicon.svg" alt="" width="28" height="28">
+      <button class="replay-aurora" aria-label="Replay aurora entrance" title="Replay aurora entrance"><img src="/static/aurora-logo.svg" alt="" width="40" height="40"></button>
       <div>
         <h1>SolarRT</h1>
-        <p>Live aurora &amp; geomagnetic activity</p>
+        <p>Live aurora & geomagnetic activity</p>
       </div>
     </div>
     <div class="topbar-right">
@@ -81,7 +89,7 @@
           <div class="wx-legend muted"><span>now</span><span>cloud cover next 24 h · darker = night</span><span>+24 h</span></div>
           <div id="wxNext" class="small-text"></div>
         </div>
-        <p class="hint">Tip: use “📌 Pick on map” to check aurora chances at another spot.</p>
+        <p class="hint">Tip: use "📌 Pick on map" to check aurora chances at another spot.</p>
       </section>
 
       <!-- Aurora alerts -->
@@ -178,7 +186,6 @@
       <!-- FAQ -->
       <section id="faq" class="card faq" aria-labelledby="faqTitle">
         <div class="card-head"><h2 id="faqTitle">❓ Frequently asked questions</h2></div>
-
         <details><summary>What does the coloured map show?</summary>
           <p>NOAA's OVATION aurora forecast: the chance of seeing an aurora <em>directly overhead</em> at each place, about 30–90 minutes ahead. Green is a low chance, then yellow and orange; red means very likely. It updates about every 5 minutes.</p></details>
 
@@ -200,7 +207,7 @@
           <p>It's a model driven by live solar-wind measurements, so it's good for the next hour but can change quickly. The 3-day Kp forecast is less certain. Treat it as a guide and check again before heading out.</p></details>
 
         <details><summary>How do aurora alerts work? Do they work when the app is closed?</summary>
-          <p>Choose what should trigger an alert (the chance at your location, aurora on your horizon, or a Kp level) and whether it should wait for a dark, or dark <em>and</em> clear, sky. Alerts are checked while SolarRT is open. Phones pause apps in the background to save battery, and a closed app can't check at all, so keep SolarRT open on an aurora night.</p></details>
+          <p>Choose what should trigger an alert (aurora chance here, aurora on your horizon, or a Kp level) and whether it should wait for a dark, or dark <em>and</em> clear, sky. Alerts are checked while SolarRT is open. Phones pause apps in the background to save battery, and a closed app can't check at all, so keep SolarRT open on an aurora night.</p></details>
 
         <details><summary>What do the clouds and weather show?</summary>
           <p>The ☁ Clouds layer is a worldwide infrared satellite image from EUMETSAT, updated every 3 hours. Bright areas are cold, high cloud. The weather in your location card (cloud cover, visibility, the next dark and clear hour) is an hourly forecast from Open-Meteo.</p></details>
@@ -212,7 +219,7 @@
           <p>"Approximate location" is estimated from your internet connection and can be off by tens of kilometres. Press "◎ Locate me" to use your device's location, search for your town, or use "📌 Pick on map".</p></details>
 
         <details><summary>Which time zone are the times in?</summary>
-          <p>By default, the local time of the place you've selected. Click the clock at the top to switch to UTC, the standard for space-weather data. The Kp chart always uses UTC.</p></details>
+          <p>By default, the local time of the place you've selected. Click the clock at the top to switch to UTC, the standard for space-weather data. The Kp chart always uses UTC, because Kp is measured in fixed 3-hour UTC slots.</p></details>
 
         <details><summary>What data does SolarRT collect?</summary>
           <p>Your chosen location stays on your device. To fetch the forecast for it, the app sends the coordinates to the SolarRT server, which passes them to the weather and place-search services without storing them. Feedback you choose to send (rating, comment and optional contact) is stored so it can be read. There are no ads, trackers or accounts. See the privacy policy for details.</p></details>
@@ -253,16 +260,10 @@
         </form>
       </section>
 
-      <footer class="foot muted small-text">
-        Data: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA Space Weather Prediction Center</a>
-        (OVATION aurora model, planetary Kp) · Weather <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
-        · Clouds © EUMETSAT · ISS orbit CelesTrak · Basemap © Esri · Place search © OpenStreetMap contributors.
-      </footer>
     </aside>
   </main>
-
   <footer class="app-credit">Application by <strong>S. Debnath</strong> · SolarRT <span id="creditVersion"></span>
-    · <a href="#faq" id="faqLink">FAQ</a> · <a href="/static/privacy.html" target="_blank" rel="noopener" id="privacyLink">Privacy</a></footer>
+        · <a href="#faq" id="faqLink">FAQ</a> · <a href="/static/privacy.html" target="_blank" rel="noopener" id="privacyLink">Privacy</a></footer>
 
   <dialog id="welcome" class="welcome" aria-labelledby="wlTitle">
     <div class="wl-icon" aria-hidden="true">📍</div>
@@ -274,7 +275,7 @@
       <button id="wlSearch" class="ghost" type="button">🔍 I'll search for a place instead</button>
     </div>
     <p id="wlMsg" class="wl-msg" role="status"></p>
-    <p class="muted small-text">Your location stays in this browser/app on your device. You can change it any time with “Locate me”, the search box or “Pick on map”.</p>
+    <p class="muted small-text">Your location stays in this browser or app on your device. You can change it any time with "Locate me", the search box or "Pick on map".</p>
   </dialog>
 
   <dialog id="about">
@@ -283,20 +284,20 @@
     <p>SolarRT shows where the aurora is likely right now, how disturbed Earth's magnetic field is (Kp index), and what that means for where you are.</p>
     <h3>Regional aurora map</h3>
     <p>The coloured overlay is NOAA's <strong>OVATION Prime</strong> model: the probability of seeing an aurora overhead, on a 1°×1° grid, for about 30–90 minutes ahead. It refreshes roughly every 5 minutes.</p>
-    <h3>Kp index &amp; storm levels</h3>
+    <h3>Kp index & storm levels</h3>
     <p>Kp (0–9) measures global geomagnetic disturbance every 3 hours. Kp 5 and above is a geomagnetic storm on NOAA's scale: G1 Minor (5), G2 Moderate (6), G3 Strong (7), G4 Severe (8), G5 Extreme (9). The higher the Kp, the further from the poles the aurora reaches.</p>
     <h3>Your chances</h3>
     <p>"Chance here" is the OVATION probability at your location. A bright aurora can also be seen low on the horizon from several hundred kilometres away, so the app also checks within 800 km. You also need a dark, clear sky — the app tells you when the Sun is too high.</p>
     <h3>ISS tracker</h3>
     <p>Press the 🛰 ISS button on the map to follow the International Space Station live. Its position is calculated on the server from its latest published orbit (from CelesTrak) using the SGP4 model, to within about a kilometre.</p>
-    <h3>Clouds &amp; weather</h3>
+    <h3>Clouds & weather</h3>
     <p>The ☁ Clouds map layer is EUMETSAT's worldwide infrared satellite composite (updated every 3 hours); bright = cold, high cloud. The weather for your location (cloud cover, visibility, the next dark and clear hour) comes from Open-Meteo.</p>
     <h3>Aurora alerts</h3>
     <p>Alerts are checked while SolarRT is open. Choose what triggers them (aurora chance here, aurora on your horizon, or a Kp level) and whether they should wait for a dark sky, a dark <em>and</em> clear sky, or ignore the weather. You get at most one alert per three hours unless activity gets stronger.</p>
-    <h3>Your location &amp; privacy</h3>
+    <h3>Your location & privacy</h3>
     <p>On first visit SolarRT asks how to find you: your device's current location (with your permission), an approximate location estimated from your IP address (via geojs.io), or a place you search for. Your chosen location is stored only in this browser or app.</p>
     <h3>Local time</h3>
-    <p>The clock in the top bar shows the time at your selected location, in that place's own time zone. Click it to switch every time in the app between local time and UTC, the standard used for space-weather data. The Kp chart always uses UTC, because Kp is measured in fixed 3-hour UTC slots.</p>
+    <p>The clock in the top bar shows the time at your selected location, in that place's own time zone. Click it to switch every time in the app between local time and UTC, the standard for space-weather data. The Kp chart always uses UTC, because Kp is measured in fixed 3-hour UTC slots.</p>
     <h3>About the author</h3>
     <div class="author">
       <div class="author-avatar" aria-hidden="true">SD</div>
@@ -314,6 +315,7 @@
 
   <script src="/static/config.js"></script>
   <script src="/static/vendor/leaflet/leaflet.js"></script>
+  <script src="/static/aurora-scene.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

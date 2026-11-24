@@ -137,6 +137,8 @@ def main() -> None:
             width=1360, height=860, min_size=(900, 600), background_color="#070B14",
             js_api=DesktopApi(),
         )
+        if window is None:
+            raise RuntimeError("WebView window creation failed")
         window.events.closed += server.stop
         webview.start(
             gui="edgechromium" if sys.platform == "win32" else None,

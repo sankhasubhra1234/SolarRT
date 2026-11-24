@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SolarRT - Aurora Animation Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: #0a0a1e; 
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #canvas { 
+      width: 100vw; 
+      height: 100vh; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+    }
+    .aurora-text {
+      color: #00ff88;
+      text-shadow: 0 0 5px #00ff88, 0 0 10px #00b3ff;
+      font-family: 'Courier New', monospace;
+      font-size: 2em;
+    }
+    .app-name {
+      color: #ff6b35;
+      text-shadow: 0 0 5px #ff6b35;
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #88aaff;
+      font-size: 1em;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas">
+    <div class="aurora-text" id="aurora">Loading...</div>
+    <div class="app-name" id="appName">SolarRT</div>
+    <div class="subtitle" id="subtitle">Aurora & Kp Monitor</div>
+  </div>
+
+  <script>
+    // ASCII art frames for Aurora animation
+    const auroraFrames = [
+      // Frame 1
+      `
+      |||||||||||||||||||||||||||||||||||||||||||||||||
+      ||     .--.  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ( oo) (oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||     --'    '--'    '--'    '--'    '--'      ||
+      ||    ||                                        ||
+      ||    ||        .--.  .--.  .--.                ||
+      ||    ||       ( oo) (oo) (oo) (oo)            ||
+      ||    ||        --'    '--'    '--'            ||
+      ||    ||                                        ||
+      ||    ||   .--.  .--.  .--.  .--.  .--.         ||
+      ||    ||   ( oo) (oo) (oo) (oo) (oo) (oo)       ||
+      ||    ||    --'    '--'    '--'    '--'        ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||    || --'    '--'    '--'    '--'    '--'     ||
+      ||    ||                                        ||
+      ||    || .--.  .--.  .--.                       ||
+      ||    ||( oo) (oo) (oo) (oo)                    ||
+      ||    || --'    '--'                            ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.                ||
+      ||    || ( oo) (oo) (oo) (oo) (oo)             ||
+      ||    || --'    '--'    '--'    '--'           ||
+      ||    ||                                        ||
+      ||    || .--.  .--.  .--.  .--.  .--.          ||
+      ||    ||( oo) (oo) (oo) (oo) (oo) (oo)         ||
+      ||    || --'    '--'    '--'    '--'          ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.  .--.    ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo) (oo)   ||
+      ||    || --'    '--'    '--'    '--'    '--'   ||
+      ||    ||                                        ||
+      `,
+      // Frame 2 - slightly shifted
+      `
+      |||||||||||||||||||||||||||||||||||||||||||||||||
+      ||     .--.  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ( oo) (oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||     --'    '--'    '--'    '--'    '--'      ||
+      ||    ||                                        ||
+      ||    ||   .--.  .--.  .--.  .--.               ||
+      ||    ||   ( oo) (oo) (oo) (oo)               ||
+      ||    ||    --'    '--'    '--'               ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.          ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo)         ||
+      ||    ||   --'    '--'    '--'    '--'         ||
+      ||    ||                                        ||
+      ||    || .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ||( oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||    || --'    '--'    '--'    '--'    '--'    ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.  .--.    ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo) (oo)   ||
+      ||    || --'    '--'    '--'    '--'    '--'   ||
+      `,
+      // Frame 3
+      `
+      |||||||||||||||||||||||||||||||||||||||||||||||||
+      ||     .--.  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ( oo) (oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||     --'    '--'    '--'    '--'    '--'      ||
+      ||    ||                                        ||
+      ||    ||   .--.  .--.  .--.  .--.               ||
+      ||    ||   ( oo) (oo) (oo) (oo)               ||
+      ||    ||    --'    '--'    '--'               ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.          ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo)         ||
+      ||    ||    --'    '--'    '--'    '--'         ||
+      ||    ||                                        ||
+      ||    || .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ||( oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||    || --'    '--'    '--'    '--'    '--'    ||
+      `,
+      // Frame 4 - expanding
+      `
+      |||||||||||||||||||||||||||||||||||||||||||||||||
+      ||     .--.  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    ( oo) (oo) (oo) (oo) (oo) (oo) (oo) (oo)    ||
+      ||     --'    '--'    '--'    '--'    '--'      ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.  .--.     ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo) (oo)     ||
+      ||    ||    --'    '--'    '--'    '--'          ||
+      ||    ||                                        ||
+      ||    ||  .--.  .--.  .--.  .--.  .--.  .--.  .--. ||
+      ||    || ( oo) (oo) (oo) (oo) (oo) (oo) (oo) (oo)||
+      ||    ||    --'    '--'    '--'    '--'    '--' ||
+      `,
+    ];
+
+    let currentFrame = 0;
+    const container = document.getElementById('aurora');
+    const appName = document.getElementById('appName');
+    const subtitle = document.getElementById('subtitle');
+
+    function showFrame(frameIndex) {
+      const frame = auroraFrames[frameIndex % auroraFrames.length];
+      container.textContent = frame.trim();
+    }
+
+    function animate() {
+      // Cycle through frames
+      showFrame(currentFrame);
+      currentFrame = (currentFrame + 1) % auroraFrames.length;
+    }
+
+    // Start animation
+    const intervalId = setInterval(animate, 150); // 6.67 fps
+
+    // After 3 seconds, fade out and stop
+    setTimeout(() => {
+      clearInterval(intervalId);
+      container.style.transition = 'opacity 1s ease-out';
+      container.style.opacity = '0';
+      container.style.visibility = 'hidden';
+      appName.style.transition = 'opacity 1s ease-out';
+      appName.style.opacity = '0';
+      subtitle.style.transition = 'opacity 1s ease-out';
+      subtitle.style.opacity = '0';
+      
+      // After fade out, show message
+      setTimeout(() => {
+        container.textContent = 'Loading SolarRT...';
+        appName.textContent = 'SolarRT';
+        container.style.opacity = '1';
+        container.style.visibility = 'visible';
+        appName.style.opacity = '1';
+        subtitle.style.opacity = '1';
+      }, 1000);
+    }, 3000);
+  </script>
+</body>
+</html>

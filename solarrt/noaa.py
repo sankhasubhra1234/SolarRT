@@ -220,7 +220,7 @@ class AuroraGrid:
 
 def parse_ovation(data: Any) -> AuroraGrid:
     if not isinstance(data, dict) or not isinstance(data.get("coordinates"), list):
-        raise ValueError("Unexpected OVATION format")
+        raise TypeError("Unexpected OVATION format")
     values = bytearray(GRID_W * GRID_H)
     for item in data["coordinates"]:
         try:

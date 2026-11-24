@@ -2,9 +2,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from solarrt.noaa import (KpPoint, build_kp_summary, g_scale, haversine_km, kp_label,
-                          parse_kp_1m, parse_kp_3h, parse_kp_forecast, parse_ovation,
-                          sky_darkness, sun_elevation)
+from solarrt.noaa import (
+    KpPoint,
+    build_kp_summary,
+    g_scale,
+    haversine_km,
+    kp_label,
+    parse_kp_1m,
+    parse_kp_3h,
+    parse_kp_forecast,
+    parse_ovation,
+    sky_darkness,
+    sun_elevation,
+)
 from tests.conftest import load
 
 
@@ -70,7 +80,7 @@ def test_ovation_grid_lookup():
 
 
 def test_ovation_bad_input():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         parse_ovation({"nope": 1})
 
 

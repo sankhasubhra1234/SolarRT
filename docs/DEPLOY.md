@@ -49,7 +49,7 @@ If you use a private GitHub repository instead, run `git clone` on the server.
 ssh solar@203.0.113.5
 cd ~/SolarRT2/deploy
 cp .env.example .env
-nano .env        # set SOLARRT_DOMAIN and SOLARRT_ALLOWED_HOSTS to 203-0-113-5.sslip.io
+nano .env        # set your domain and include 127.0.0.1 in SOLARRT_ALLOWED_HOSTS for container health checks
                  # set SOLARRT_ADMIN_TOKEN to the output of:  openssl rand -hex 32
 chmod 600 .env
 chmod +x *.sh
@@ -66,6 +66,10 @@ powershell -ExecutionPolicy Bypass -File mobile\build.ps1 -ApiBase https://203-0
 ```
 
 See [ANDROID.md](ANDROID.md) for the signing key, which you need to create once.
+
+**CORS note:** Release Android builds refuse `http://` addresses - must use `https://`. The Caddy reverse proxy internally trusts `*` for `forwarded-allow-ips` since port 8000 is only reachable on the Docker internal network. For custom domains, Caddy auto-gets Let's Encrypt certificates.
+
+If you need to restrict origins, set `SOLARRT_CORS_ORIGINS` in `.env` as a comma-separated list (e.g. `https://solarrt.example.com,https://www.solarrt.example.com`).
 
 For the desktop app to forward its users' feedback to you, set `SOLARRT_FEEDBACK_FORWARD_URL` to
 `https://203-0-113-5.sslip.io/api/feedback` before building it.

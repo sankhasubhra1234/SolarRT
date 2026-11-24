@@ -57,7 +57,7 @@ def activity_level(prob: float) -> str:
 
 
 def summarize_regions(grid: AuroraGrid) -> list[dict[str, Any]]:
-    out = []
+    out: list[dict[str, Any]] = []
     for r in REGIONS:
         best, best_at, active, total = 0, None, 0, 0
         for lat, lon in r.cells():

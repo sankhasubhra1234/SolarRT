@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "solarrt"
-version = {attr = "solarrt.__version__"}
+dynamic = ["version"]
 description = "Real-time regional aurora forecast, Kp index and local aurora chances from NOAA SWPC data"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "S. Debnath" }]
+license = "MIT"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
@@ -22,6 +23,9 @@ dev = ["pytest>=8", "pytest-cov", "ruff", "mypy"]
 
 [project.scripts]
 solarrt = "solarrt.__main__:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "solarrt.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["solarrt*"]

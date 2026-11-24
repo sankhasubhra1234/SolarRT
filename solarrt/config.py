@@ -77,7 +77,11 @@ class Settings:
     ttl_iss_snapshot: int = _env_int("SOLARRT_TTL_ISS_SNAPSHOT", 10)
 
     http_timeout: float = 20.0
-    user_agent: str = f"{APP_NAME}/{__version__} (aurora monitor)"
+    # Per D4: user agent for Nominatim must include domain and contact e-mail.
+    # Set SOLARRT_USER_AGENT_OVERRIDE env var to e.g.
+    #   "SolarRT/2.0.0 (+https://solarrt.example.com; mailto:ops@example.com)"
+    # before go-live so per-location requests don't get rate-banned.
+    user_agent: str = os.environ.get("SOLARRT_USER_AGENT_OVERRIDE", f"{APP_NAME}/{__version__} (aurora monitor)")
 
     host: str = os.environ.get("SOLARRT_HOST", "127.0.0.1")
     port: int = _env_int("SOLARRT_PORT", 8000)

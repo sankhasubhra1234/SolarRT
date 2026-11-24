@@ -62,6 +62,14 @@ JavaScript inside a debug build for testing.
 Android only installs updates signed with the **same key**, so create it once and keep it safe.
 **If you lose the key or its password, you can never update the app again.**
 
+## CORS / Capacitor Note
+
+The Android app uses [Capacitor](https://capacitorjs.com/) to host the web UI internally.
+- **Test builds** (`-Debug`): Allow `http://` addresses (your PC's IP, `10.0.2.2` for emulator). The `CapacitorHttp` plugin handles CORS internally.
+- **Release builds** (`-Release`): **Must use `https://` addresses only**. Release builds refuse `http://` addresses.
+- The Caddy reverse proxy on the server trusts `*` for `forwarded-allow-ips` because port 8000 is only reachable on the internal Docker network. For production with a custom domain, ensure your domain has a valid HTTPS certificate (Caddy/Let's Encrypt handles this automatically).
+- If you need to customize allowed CORS origins, set `SOLARRT_CORS_ORIGINS` as a comma-separated list in `.env`. The default allows the deployed domain.
+
 ```powershell
 cd mobile
 & "$env:ProgramFiles\Microsoft\jdk-21*\bin\keytool.exe" -genkeypair -v -keystore solarrt-release.jks `
