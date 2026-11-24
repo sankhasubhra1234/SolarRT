@@ -1,0 +1,50 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+*.spec.bak
+
+# Runtime data & secrets
+data/
+deploy/.env
+*.log
+*.jsonl
+
+# Mobile: installed packages and generated web assets
+mobile/node_modules/
+mobile/www/
+
+# Mobile: Gradle / IDE / build caches (keep the Android project sources)
+mobile/android/.gradle/
+mobile/android/.kotlin/
+mobile/android/.cxx/
+mobile/android/local.properties
+mobile/android/app/.cxx/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/capacitor-cordova-android-plugins/build/
+mobile/android/app/src/main/assets/public/
+mobile/android/app/src/main/assets/capacitor.config.json
+mobile/android/app/src/main/assets/capacitor.plugins.json
+
+# Signing material — never commit
+mobile/keystore.properties
+*.jks
+*.keystore
+
+# Editors / OS
+.gradle/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+# Runtime (pinned versions verified with Python 3.14)
+fastapi==0.163.1
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+sgp4==2.27
+
+# Desktop app + packaging
+pywebview==6.2.1
+plyer==2.1.0
+pyinstaller==6.22.3
+pillow==13.0.0
+
+# Development
+pytest==9.2.0

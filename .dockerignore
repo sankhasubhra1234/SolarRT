@@ -1,0 +1,14 @@
+.venv
+.git
+.pytest_cache
+__pycache__
+tests
+mobile
+packaging
+deploy
+docs
+data
+dist
+*.md
+build
+dist

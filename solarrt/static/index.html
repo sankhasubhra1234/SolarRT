@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SolarRT — Aurora & Kp Monitor</title>
+  <meta name="description" content="Live regional aurora forecast, Kp index and your local aurora chances, from NOAA SWPC data.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/theme-init.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/static/favicon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>SolarRT</h1>
+        <p>Live aurora &amp; geomagnetic activity</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="status" class="status" role="status">Loading…</span>
+      <button id="clockBtn" class="ghost clock" type="button" aria-label="Clock: switch between local time and UTC">
+        <span id="clockMain">--:--</span><span id="clockOther" class="clock-other"></span>
+      </button>
+      <button id="themeBtn" class="ghost" type="button" title="Switch colour theme">◐ Auto</button>
+      <button id="aboutBtn" class="ghost" type="button">About</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="map-wrap" aria-label="Aurora map">
+      <div id="map"></div>
+      <div class="map-legend" aria-hidden="true">
+        <span>Aurora probability</span>
+        <div class="legend-bar"></div>
+        <div class="legend-ticks"><span>5%</span><span>25%</span><span>50%</span><span>90%+</span></div>
+      </div>
+      <div id="forecastTime" class="map-caption"></div>
+      <div id="pickBanner" class="pick-banner" role="status" hidden>📌 Click on the map to choose a spot · Esc to cancel</div>
+    </section>
+
+    <aside class="sidebar">
+      <!-- Location -->
+      <section class="card" aria-labelledby="locTitle">
+        <div class="card-head">
+          <h2 id="locTitle">Your location</h2>
+          <div class="head-actions">
+            <button id="pickBtn" class="ghost small" type="button" aria-pressed="false" title="Choose a spot by clicking on the map">📌 Pick on map</button>
+            <button id="gpsBtn" class="ghost small" type="button" title="Use your device's current location">◎ Locate me</button>
+          </div>
+        </div>
+        <form id="searchForm" class="search" role="search" autocomplete="off">
+          <input id="searchInput" type="search" placeholder="Search a city or place…" aria-label="Search a place">
+          <ul id="searchResults" class="search-results" hidden></ul>
+        </form>
+        <div id="locName" class="loc-name">Finding you…</div>
+        <div id="locCoords" class="muted small-text"></div>
+        <div id="locTime" class="loc-time small-text"></div>
+        <div class="loc-grid">
+          <div class="big-stat">
+            <span id="locProb" class="big-num">–</span>
+            <span class="muted">aurora chance here</span>
+          </div>
+          <div>
+            <div id="locVerdict" class="verdict">–</div>
+            <div id="locSky" class="muted small-text"></div>
+            <div id="locNearby" class="muted small-text"></div>
+          </div>
+        </div>
+        <div class="weather" aria-live="polite">
+          <div class="weather-head">
+            <span id="wxIcon" class="wx-icon" aria-hidden="true">☁</span>
+            <div>
+              <div id="wxSummary" class="verdict">Loading weather…</div>
+              <div id="wxDetail" class="muted small-text"></div>
+            </div>
+          </div>
+          <div id="wxStrip" class="wx-strip" role="img" aria-label="Cloud cover for the next 24 hours"></div>
+          <div class="wx-legend muted"><span>now</span><span>cloud cover next 24 h · darker = night</span><span>+24 h</span></div>
+          <div id="wxNext" class="small-text"></div>
+        </div>
+        <p class="hint">Tip: use “📌 Pick on map” to check aurora chances at another spot.</p>
+      </section>
+
+      <!-- Aurora alerts -->
+      <section class="card" aria-labelledby="alertTitle">
+        <div class="card-head">
+          <h2 id="alertTitle">🔔 Aurora alerts</h2>
+          <label class="switch" title="Turn aurora alerts on or off">
+            <input id="alEnabled" type="checkbox"><span></span>
+          </label>
+        </div>
+        <form id="alertForm" class="alert-form">
+          <fieldset>
+            <legend>Alert me when</legend>
+            <label class="check"><input id="alUseProb" type="checkbox" checked>
+              Aurora chance at my location reaches <output id="alProbOut">10</output>%</label>
+            <input id="alProb" type="range" min="5" max="60" step="5" value="10" aria-label="Aurora chance threshold">
+            <label class="check"><input id="alUseNearby" type="checkbox" checked>
+              Or it may be visible on my horizon (within 800 km)</label>
+            <label class="check"><input id="alUseKp" type="checkbox" checked>
+              Or Kp reaches
+              <select id="alKp" aria-label="Kp threshold">
+                <option value="4">4 (active)</option><option value="5" selected>5 (G1 storm)</option>
+                <option value="6">6 (G2)</option><option value="7">7 (G3)</option><option value="8">8 (G4)</option>
+              </select></label>
+          </fieldset>
+          <fieldset>
+            <legend>Only if the sky lets me see it</legend>
+            <label class="check"><input type="radio" name="alWx" value="any"> Any conditions (no weather check)</label>
+            <label class="check"><input type="radio" name="alWx" value="dark" checked> Only when it's dark</label>
+            <label class="check"><input type="radio" name="alWx" value="clear"> Only when dark <em>and</em> clear</label>
+            <div id="alClearOpts" class="sub-opts">
+              Cloud cover at most <output id="alCloudOut">30</output>%
+              <input id="alCloud" type="range" min="10" max="80" step="10" value="30" aria-label="Maximum cloud cover">
+              <label class="check"><input id="alVis" type="checkbox" checked> and visibility at least 10 km</label>
+            </div>
+          </fieldset>
+          <div class="row-actions">
+            <button id="alTest" class="ghost small" type="button">Send test alert</button>
+            <span id="alPerm" class="muted small-text"></span>
+          </div>
+          <div id="alStatus" class="alert-status small-text">Alerts are off.</div>
+        </form>
+      </section>
+
+      <!-- ISS (shown while the ISS layer is on) -->
+      <section id="issCard" class="card" aria-labelledby="issTitle" hidden>
+        <div class="card-head">
+          <h2 id="issTitle">🛰 ISS live</h2>
+          <span id="issBadge" class="badge">–</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Position</dt><dd id="issPos">–</dd></div>
+          <div><dt>Altitude</dt><dd id="issAlt">–</dd></div>
+          <div><dt>Speed</dt><dd id="issSpeed">–</dd></div>
+          <div><dt>Distance from you</dt><dd id="issDist">–</dd></div>
+        </dl>
+        <div id="issView" class="verdict small-gap">–</div>
+        <div class="row-actions">
+          <label class="check"><input id="issFollow" type="checkbox"> Follow on map</label>
+          <button id="issCenter" class="ghost small" type="button">Center</button>
+        </div>
+        <p class="hint">Solid line: last 46 min · dashed: next 46 min (one full orbit) · ring: area where the ISS is above the horizon.</p>
+      </section>
+
+      <!-- Kp -->
+      <section class="card" aria-labelledby="kpTitle">
+        <div class="card-head">
+          <h2 id="kpTitle">Kp index</h2>
+          <span id="kpBadge" class="badge">–</span>
+        </div>
+        <div class="kp-row">
+          <div class="big-stat">
+            <span id="kpNow" class="big-num">–</span>
+            <span id="kpNowSub" class="muted">current estimate</span>
+          </div>
+          <dl class="kp-facts">
+            <div><dt>Last 3 h</dt><dd id="kp3h">–</dd></div>
+            <div><dt>Max past 24 h</dt><dd id="kpMax">–</dd></div>
+            <div><dt>Peak next 24 h</dt><dd id="kpPeak">–</dd></div>
+          </dl>
+        </div>
+        <div id="kpChart" class="kp-chart" role="img" aria-label="Kp index over the past days and forecast"></div>
+        <div class="chart-legend"><span class="sw obs"></span>Observed <span class="sw est"></span>Estimated <span class="sw pred"></span>Forecast <span class="chart-utc">· 3-hour slots in UTC</span></div>
+      </section>
+
+      <!-- Regions -->
+      <section class="card" aria-labelledby="regTitle">
+        <div class="card-head">
+          <h2 id="regTitle">Regional aurora activity</h2>
+        </div>
+        <ul id="regions" class="regions"></ul>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="card faq" aria-labelledby="faqTitle">
+        <div class="card-head"><h2 id="faqTitle">❓ Frequently asked questions</h2></div>
+
+        <details><summary>What does the coloured map show?</summary>
+          <p>NOAA's OVATION aurora forecast: the chance of seeing an aurora <em>directly overhead</em> at each place, about 30–90 minutes ahead. Green is a low chance, then yellow and orange; red means very likely. It updates about every 5 minutes.</p></details>
+
+        <details><summary>What is the Kp index, and what Kp do I need?</summary>
+          <p>Kp (0–9) measures how disturbed Earth's magnetic field is. Higher Kp pushes the aurora further from the poles. Very roughly, by <em>magnetic</em> latitude:</p>
+          <table class="kp-guide">
+            <tr><th>Kp</th><td>1–2</td><td>3–4</td><td>5 (G1)</td><td>6 (G2)</td><td>7 (G3)</td><td>8–9</td></tr>
+            <tr><th>Reaches about</th><td>66°+</td><td>62°</td><td>56°</td><td>54°</td><td>50°</td><td>45° and below</td></tr>
+          </table>
+          <p class="muted small-text">Magnetic latitude differs from geographic latitude (Europe sees aurora at lower latitudes than North America at the same Kp). The map and "chance here" already take this into account.</p></details>
+
+        <details><summary>The map shows aurora, so why does it say 0% for me?</summary>
+          <p>"Chance here" is for the sky straight above you. An aurora further north (or south) can still be seen low on the horizon from up to ~800 km away, which SolarRT reports separately. You also need darkness: in daylight or twilight you won't see it even if it's there.</p></details>
+
+        <details><summary>When and how should I look?</summary>
+          <p>Go somewhere dark, away from city lights, and look toward the pole (north in the Northern Hemisphere, south in the Southern). The best time is usually 21:00–03:00 local time. Give your eyes 15–20 minutes to adjust. Phone cameras often show colour your eyes can't see yet.</p></details>
+
+        <details><summary>How accurate is the forecast?</summary>
+          <p>It's a model driven by live solar-wind measurements, so it's good for the next hour but can change quickly. The 3-day Kp forecast is less certain. Treat it as a guide and check again before heading out.</p></details>
+
+        <details><summary>How do aurora alerts work? Do they work when the app is closed?</summary>
+          <p>Choose what should trigger an alert (the chance at your location, aurora on your horizon, or a Kp level) and whether it should wait for a dark, or dark <em>and</em> clear, sky. Alerts are checked while SolarRT is open. Phones pause apps in the background to save battery, and a closed app can't check at all, so keep SolarRT open on an aurora night.</p></details>
+
+        <details><summary>What do the clouds and weather show?</summary>
+          <p>The ☁ Clouds layer is a worldwide infrared satellite image from EUMETSAT, updated every 3 hours. Bright areas are cold, high cloud. The weather in your location card (cloud cover, visibility, the next dark and clear hour) is an hourly forecast from Open-Meteo.</p></details>
+
+        <details><summary>What are the ISS line and ring?</summary>
+          <p>The 🛰 ISS button shows the International Space Station live. The solid line is where it has been, the dashed line is where it's going (one full orbit), and the ring is the area from which it's above the horizon. To see it with your own eyes, the ISS needs to be in sunlight (☀ Sunlit) while your sky is dark, usually shortly after sunset or before sunrise.</p></details>
+
+        <details><summary>Why is my location wrong?</summary>
+          <p>"Approximate location" is estimated from your internet connection and can be off by tens of kilometres. Press "◎ Locate me" to use your device's location, search for your town, or use "📌 Pick on map".</p></details>
+
+        <details><summary>Which time zone are the times in?</summary>
+          <p>By default, the local time of the place you've selected. Click the clock at the top to switch to UTC, the standard for space-weather data. The Kp chart always uses UTC.</p></details>
+
+        <details><summary>What data does SolarRT collect?</summary>
+          <p>Your chosen location stays on your device. To fetch the forecast for it, the app sends the coordinates to the SolarRT server, which passes them to the weather and place-search services without storing them. Feedback you choose to send (rating, comment and optional contact) is stored so it can be read. There are no ads, trackers or accounts. See the privacy policy for details.</p></details>
+
+        <details><summary>Where does the data come from? Is it free?</summary>
+          <p>NOAA Space Weather Prediction Center (aurora forecast and Kp), Open-Meteo (weather), EUMETSAT (clouds), CelesTrak (ISS orbit), OpenStreetMap (place names) and Esri (map). SolarRT is free to use.</p></details>
+
+        <details><summary>It says "unavailable" or shows old data. What's wrong?</summary>
+          <p>Usually one of the data services is briefly down. SolarRT keeps showing the last good data and refreshes automatically. Check your internet connection if nothing loads at all.</p></details>
+
+        <details><summary>Can I get SolarRT on my phone or computer?</summary>
+          <p>Yes. There's an Android app and a Windows desktop app with the same features. On iPhone, use the website in Safari and choose Share → <em>Add to Home Screen</em>.</p></details>
+
+        <details><summary>How do I report a problem or suggest a feature?</summary>
+          <p>Use the feedback section below: pick a face and tell us what happened. Leave your contact details if you'd like a reply.</p></details>
+      </section>
+
+      <!-- Feedback -->
+      <section class="card" aria-labelledby="fbTitle">
+        <div class="card-head"><h2 id="fbTitle">💬 How do you like SolarRT?</h2></div>
+        <form id="fbForm" class="fb-form">
+          <div class="smileys" role="radiogroup" aria-label="Your rating">
+            <button type="button" role="radio" aria-checked="false" data-rating="1" title="Terrible">😞<span>Terrible</span></button>
+            <button type="button" role="radio" aria-checked="false" data-rating="2" title="Bad">🙁<span>Bad</span></button>
+            <button type="button" role="radio" aria-checked="false" data-rating="3" title="Okay">😐<span>Okay</span></button>
+            <button type="button" role="radio" aria-checked="false" data-rating="4" title="Good">🙂<span>Good</span></button>
+            <button type="button" role="radio" aria-checked="false" data-rating="5" title="Love it">😍<span>Love it</span></button>
+          </div>
+          <div id="fbMore" hidden>
+            <textarea id="fbComment" maxlength="2000" rows="3" placeholder="Tell us more — what do you like, what's missing, any bugs? (optional)"></textarea>
+            <input id="fbContact" type="text" maxlength="200" placeholder="Name or email, if you'd like a reply (optional)">
+            <div class="row-actions">
+              <span id="fbCount" class="muted small-text">0 / 2000</span>
+              <button id="fbSend" type="submit">Send feedback</button>
+            </div>
+          </div>
+          <div id="fbStatus" class="small-text" role="status"></div>
+        </form>
+      </section>
+
+      <footer class="foot muted small-text">
+        Data: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA Space Weather Prediction Center</a>
+        (OVATION aurora model, planetary Kp) · Weather <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+        · Clouds © EUMETSAT · ISS orbit CelesTrak · Basemap © Esri · Place search © OpenStreetMap contributors.
+      </footer>
+    </aside>
+  </main>
+
+  <footer class="app-credit">Application by <strong>S. Debnath</strong> · SolarRT <span id="creditVersion"></span>
+    · <a href="#faq" id="faqLink">FAQ</a> · <a href="/static/privacy.html" target="_blank" rel="noopener" id="privacyLink">Privacy</a></footer>
+
+  <dialog id="welcome" class="welcome" aria-labelledby="wlTitle">
+    <div class="wl-icon" aria-hidden="true">📍</div>
+    <h2 id="wlTitle">Welcome to SolarRT</h2>
+    <p>To show your chances of seeing the aurora, the local sky conditions and alerts, SolarRT needs to know where you are.</p>
+    <div class="wl-actions">
+      <button id="wlGps" class="primary" type="button">📍 Use my current location</button>
+      <button id="wlIp" class="ghost" type="button">Use approximate location (from my internet connection)</button>
+      <button id="wlSearch" class="ghost" type="button">🔍 I'll search for a place instead</button>
+    </div>
+    <p id="wlMsg" class="wl-msg" role="status"></p>
+    <p class="muted small-text">Your location stays in this browser/app on your device. You can change it any time with “Locate me”, the search box or “Pick on map”.</p>
+  </dialog>
+
+  <dialog id="about">
+    <form method="dialog" class="dialog-close"><button class="ghost" aria-label="Close">✕</button></form>
+    <h2>About SolarRT</h2>
+    <p>SolarRT shows where the aurora is likely right now, how disturbed Earth's magnetic field is (Kp index), and what that means for where you are.</p>
+    <h3>Regional aurora map</h3>
+    <p>The coloured overlay is NOAA's <strong>OVATION Prime</strong> model: the probability of seeing an aurora overhead, on a 1°×1° grid, for about 30–90 minutes ahead. It refreshes roughly every 5 minutes.</p>
+    <h3>Kp index &amp; storm levels</h3>
+    <p>Kp (0–9) measures global geomagnetic disturbance every 3 hours. Kp 5 and above is a geomagnetic storm on NOAA's scale: G1 Minor (5), G2 Moderate (6), G3 Strong (7), G4 Severe (8), G5 Extreme (9). The higher the Kp, the further from the poles the aurora reaches.</p>
+    <h3>Your chances</h3>
+    <p>"Chance here" is the OVATION probability at your location. A bright aurora can also be seen low on the horizon from several hundred kilometres away, so the app also checks within 800 km. You also need a dark, clear sky — the app tells you when the Sun is too high.</p>
+    <h3>ISS tracker</h3>
+    <p>Press the 🛰 ISS button on the map to follow the International Space Station live. Its position is calculated on the server from its latest published orbit (from CelesTrak) using the SGP4 model, to within about a kilometre.</p>
+    <h3>Clouds &amp; weather</h3>
+    <p>The ☁ Clouds map layer is EUMETSAT's worldwide infrared satellite composite (updated every 3 hours); bright = cold, high cloud. The weather for your location (cloud cover, visibility, the next dark and clear hour) comes from Open-Meteo.</p>
+    <h3>Aurora alerts</h3>
+    <p>Alerts are checked while SolarRT is open. Choose what triggers them (aurora chance here, aurora on your horizon, or a Kp level) and whether they should wait for a dark sky, a dark <em>and</em> clear sky, or ignore the weather. You get at most one alert per three hours unless activity gets stronger.</p>
+    <h3>Your location &amp; privacy</h3>
+    <p>On first visit SolarRT asks how to find you: your device's current location (with your permission), an approximate location estimated from your IP address (via geojs.io), or a place you search for. Your chosen location is stored only in this browser or app.</p>
+    <h3>Local time</h3>
+    <p>The clock in the top bar shows the time at your selected location, in that place's own time zone. Click it to switch every time in the app between local time and UTC, the standard used for space-weather data. The Kp chart always uses UTC, because Kp is measured in fixed 3-hour UTC slots.</p>
+    <h3>About the author</h3>
+    <div class="author">
+      <div class="author-avatar" aria-hidden="true">SD</div>
+      <div>
+        <p class="author-name">S. Debnath</p>
+        <p class="author-quals">MSc Planetary Science<br>Electronics and Communication Engineering</p>
+        <p>SolarRT brings together a background in electronics and communication engineering and planetary science, with interests in space weather, space instrumentation, astronomy and space exploration.</p>
+        <p><a href="https://www.linkedin.com/in/sankha-debnath/" target="_blank" rel="noopener">Connect on LinkedIn ↗</a></p>
+      </div>
+    </div>
+    <p class="muted small-text" id="versionLine"></p>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="assertive"></div>
+
+  <script src="/static/config.js"></script>
+  <script src="/static/vendor/leaflet/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+    "appId":  "com.sdebnath.solarrt",
+    "appName":  "SolarRT",
+    "webDir":  "www",
+    "backgroundColor":  "#070B14",
+    "android":  {
+                    "allowMixedContent":  false
+                },
+    "plugins":  {
+                    "CapacitorHttp":  {
+                                          "enabled":  true
+                                      },
+                    "LocalNotifications":  {
+                                               "smallIcon":  "ic_stat_solarrt",
+                                               "iconColor":  "#2BD98A"
+                                           }
+                },
+    "server":  {
+                   "cleartext":  true
+               }
+}
