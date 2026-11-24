@@ -186,7 +186,7 @@ class AuroraGrid:
         """Bilinearly interpolated aurora probability (%) at a point."""
         lon = lon % 360
         y = max(0.0, min(GRID_H - 1.0, lat + 90))
-        x0, y0 = int(math.floor(lon)), int(math.floor(y))
+        x0, y0 = math.floor(lon), math.floor(y)
         fx, fy = lon - x0, y - y0
         y1 = min(y0 + 1, GRID_H - 1)
         v00, v10 = self.at_cell(y0, x0), self.at_cell(y0, x0 + 1)
@@ -229,9 +229,9 @@ def parse_ovation(data: Any) -> AuroraGrid:
             continue
         if lon is None or lat is None or val is None:
             continue
-        lon_i, lat_i = int(round(lon)), int(round(lat))
+        lon_i, lat_i = round(lon), round(lat)
         if -90 <= lat_i <= 90:
-            values[(lat_i + 90) * GRID_W + (lon_i % GRID_W)] = max(0, min(100, int(round(val))))
+            values[(lat_i + 90) * GRID_W + (lon_i % GRID_W)] = max(0, min(100, round(val)))
 
     def t(key: str) -> datetime | None:
         try:
