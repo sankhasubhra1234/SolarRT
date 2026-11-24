@@ -74,6 +74,13 @@ def test_ovation_bad_input():
         parse_ovation({"nope": 1})
 
 
+def test_ovation_accepts_floats_and_numeric_strings():
+    grid = parse_ovation({"coordinates": [[10.4, 50.6, 42.6], ["20", "-40", "150"]]})
+    assert grid.value(51, 10) == pytest.approx(43)      # 42.6 rounded, not truncated
+    assert grid.value(-40, 20) == 100                   # 150 clamped to 0..100
+
+
+
 def test_haversine():
     assert haversine_km(0, 0, 0, 1) == pytest.approx(111.2, abs=0.5)
 

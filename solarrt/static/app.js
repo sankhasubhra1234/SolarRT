@@ -12,6 +12,7 @@
     home: null,         // saved location {lat, lon, name, source}
     current: null,      // location currently shown (home or a clicked spot)
     errors: new Set(),
+    stale: new Map(),   // key -> {stale, age} from the API's age_seconds
     updated: null,
   };
 
@@ -63,13 +64,44 @@
     if (state.errors.size) {
       el.textContent = `⚠ ${[...state.errors][0]}`;
       el.className = "status error";
-    } else if (state.updated) {
+      return;
+    }
+    // The API marks data it had to serve from an old cache after an upstream failure. Never
+    // present that as "Updated": show when the data is actually from and which feed it is.
+    const stale = [...state.stale.entries()].filter(([, v]) => v.stale)
+      .sort((a, b) => b[1].age - a[1].age);
+    if (stale.length) {
+      const [key, v] = stale[0];
+      const when = new Date(Date.now() - v.age * 1000);
+      el.textContent = `Data from ${fmtTime(when.toISOString())} · stale (${key})`;
+      el.className = "status warn";
+      return;
+    }
+    if (state.updated) {
       el.textContent = `Updated ${fmtTime(state.updated.toISOString())}`;
       el.className = "status";
     }
   }
+  function staleInfo(v) {
+    // Some calls resolve an array (e.g. aurora + regions); report the first stale member.
+    if (Array.isArray(v)) {
+      for (const item of v) { const s = staleInfo(item); if (s) return s; }
+      return null;
+    }
+    if (v && typeof v === "object" && "stale" in v) {
+      return { stale: !!v.stale, age: Number(v.age_seconds) || 0 };
+    }
+    return null;
+  }
   function track(key, promise) {
-    return promise.then((v) => { state.errors.delete(key); state.updated = new Date(); setStatus(); return v; })
+    return promise.then((v) => {
+      state.errors.delete(key);
+      const s = staleInfo(v);
+      if (s) state.stale.set(key, s); else state.stale.delete(key);
+      if (!s || !s.stale) state.updated = new Date();
+      setStatus();
+      return v;
+    })
       .catch((e) => { console.error(key, e); state.errors.add(`${key}: ${e.message}`); setStatus(); });
   }
 
@@ -226,6 +258,7 @@
     auroraLayer.redraw();
     state.auroraTime = d.forecast_time;
     updateMapCaption();
+    return d;
   }
 
   async function loadRegions() {
@@ -260,6 +293,7 @@
       li.addEventListener("keydown", (ev) => { if (ev.key === "Enter") go(); });
       ul.append(li);
     }
+    return d;
   }
 
   // ------------------------------------------------------------------ Kp
@@ -282,6 +316,7 @@
     $("kpPeak").textContent = p ? `${p.kp.toFixed(2)} (${p.g_label.split(" ")[0]}) ${fmtTime(p.time)}` : "–";
     if (p) $("kpPeak").style.color = kpColor(p.kp);
     drawKpChart(d.series);
+    return d;
   }
 
   let lastSeries = null;
@@ -385,7 +420,9 @@
     const c = state.current;
     if (!c) return;
     const q = `lat=${c.lat.toFixed(4)}&lon=${c.lon.toFixed(4)}`;
-    const wx = track("Weather", api(`/api/weather?${q}`).then((w) => { state.wx = w; renderWeather(w); }));
+    const wx = track("Weather", api(`/api/weather?${q}`).then((w) => {
+      state.wx = w; renderWeather(w); return w;
+    }));
     const d = await api(`/api/location?${q}`);
     state.loc = d;
     wx.then(() => checkAlerts());
@@ -397,6 +434,7 @@
       ? `Strongest within ${d.nearby.radius_km} km: ${d.nearby.max}% (${d.nearby.distance_km} km away)`
       : `No aurora within ${d.nearby.radius_km} km`;
     marker.bindPopup(`<strong>${escapeHtml(c.name || "Location")}</strong><br>Aurora chance: ${Math.round(d.probability)}%<br>${escapeHtml(d.verdict)}`);
+    return d;
   }
 
   function escapeHtml(s) {
@@ -603,6 +641,7 @@
       $("issDist").textContent = "–"; $("issView").textContent = "Set your location to see distance";
     }
     issTick();
+    return d;
   }
 
   function issTick() {
@@ -629,6 +668,7 @@
     } else {
       map.removeLayer(iss.layer);
       state.errors.forEach((e) => { if (e.startsWith("ISS")) state.errors.delete(e); });
+      state.stale.delete("ISS");
       setStatus();
     }
   }
@@ -675,6 +715,7 @@
     clouds.time = info.time;
     if (clouds.on && !map.hasLayer(clouds.layer)) clouds.layer.addTo(map);
     updateMapCaption();
+    return info;
   }
 
   function setClouds(on) {
@@ -689,6 +730,7 @@
     } else if (clouds.layer) {
       map.removeLayer(clouds.layer);
     }
+    if (!on) state.stale.delete("Clouds");
     updateMapCaption();
   }
 

@@ -224,11 +224,14 @@ def parse_ovation(data: Any) -> AuroraGrid:
     values = bytearray(GRID_W * GRID_H)
     for item in data["coordinates"]:
         try:
-            lon, lat, val = int(item[0]), int(item[1]), item[2]
-        except (TypeError, ValueError, IndexError):
+            lon, lat, val = _num(item[0]), _num(item[1]), _num(item[2])
+        except (TypeError, IndexError):
             continue
-        if -90 <= lat <= 90:
-            values[(lat + 90) * GRID_W + (lon % GRID_W)] = max(0, min(100, int(round(val))))
+        if lon is None or lat is None or val is None:
+            continue
+        lon_i, lat_i = int(round(lon)), int(round(lat))
+        if -90 <= lat_i <= 90:
+            values[(lat_i + 90) * GRID_W + (lon_i % GRID_W)] = max(0, min(100, int(round(val))))
 
     def t(key: str) -> datetime | None:
         try:

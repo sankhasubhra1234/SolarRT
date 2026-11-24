@@ -69,6 +69,12 @@ class Settings:
     ttl_kp_3h: int = _env_int("SOLARRT_TTL_KP_3H", 600)
     ttl_ovation: int = _env_int("SOLARRT_TTL_OVATION", 300)
     ttl_geocode: int = 24 * 3600
+    # How long a failed refresh may keep serving the last good value before the API reports
+    # the data as unavailable instead of silently showing an old forecast (P0-1).
+    max_stale_noaa: int = _env_int("SOLARRT_MAX_STALE_NOAA", 6 * 3600)
+    max_stale_weather: int = _env_int("SOLARRT_MAX_STALE_WEATHER", 3600)
+    # Observer-independent ISS snapshot is reused for this many seconds (P0-3)
+    ttl_iss_snapshot: int = _env_int("SOLARRT_TTL_ISS_SNAPSHOT", 10)
 
     http_timeout: float = 20.0
     user_agent: str = f"{APP_NAME}/{__version__} (aurora monitor)"

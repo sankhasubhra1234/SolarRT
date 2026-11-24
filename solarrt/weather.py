@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -45,14 +46,16 @@ def summarize_weather(data: dict[str, Any], lat: float, lon: float,
     cur = data.get("current") or {}
     cloud, vis = cur.get("cloud_cover"), cur.get("visibility")
 
-    # Open-Meteo is asked for the location's own time zone (timezone=auto), so its times are
-    # local wall-clock times; convert them back to UTC using the reported offset.
+    # Open-Meteo is asked for the location's own time zone (for its label) and, since P0-4,
+    # for ``timeformat=unixtime``: hourly times are then unambiguous UTC epoch seconds. Older
+    # cached payloads (and the saved fixtures) may still hold local wall-clock ISO strings, so
+    # accept both. Converting every ISO hour with one current offset was the DST bug.
     offset = timedelta(seconds=int(data.get("utc_offset_seconds") or 0))
     hourly = data.get("hourly") or {}
     hours = []
     for i, t in enumerate(hourly.get("time") or []):
-        when = (datetime.fromisoformat(t) - offset).replace(tzinfo=timezone.utc)
-        if when + timedelta(hours=1) <= now:
+        when = _hour_time(t, offset)
+        if when is None or when + timedelta(hours=1) <= now:
             continue
         elev = sun_elevation(lat, lon, when)
         hours.append({
@@ -102,7 +105,52 @@ def _at(block: dict[str, Any], key: str, i: int):
     return values[i] if i < len(values) else None
 
 
+def _hour_time(value: Any, offset: timedelta) -> datetime | None:
+    """Turn an Open-Meteo hourly time into an aware UTC datetime.
+
+    Epoch seconds (``timeformat=unixtime``) are used directly. ISO wall-clock strings from
+    older payloads are interpreted with the supplied offset as a fallback.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    # Numeric epoch seconds, either as a JSON number or a numeric string.
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value), timezone.utc)
+        except (ValueError, OverflowError, OSError):
+            return None
+    text = str(value).strip()
+    try:
+        return datetime.fromtimestamp(float(text), timezone.utc)
+    except (ValueError, OverflowError, OSError):
+        pass
+    try:
+        return (datetime.fromisoformat(text) - offset).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
 def parse_cloud_time(caps_xml: str) -> str | None:
-    """Latest image time from the EUMETSAT WMS capabilities document."""
-    m = re.search(r'<Dimension name="time"[^>]*default="([^"]+)"', caps_xml)
-    return m.group(1) if m else None
+    """Latest image time from the EUMETSAT WMS capabilities document.
+
+    Parsed with ElementTree so attribute order and quoting do not matter; a small regex
+    fallback keeps working if the document is not well-formed XML.
+    """
+    try:
+        root = ET.fromstring(caps_xml)
+    except ET.ParseError:
+        root = None
+    if root is not None:
+        for el in root.iter():
+            if el.tag.rsplit("}", 1)[-1] == "Dimension" and el.get("name") == "time":
+                default = el.get("default")
+                if default:
+                    return default
+        return None
+    # Fallback: find the Dimension tag, then its default attribute in either order.
+    tag = re.search(r'<Dimension\b[^>]*\bname=["\']time["\'][^>]*>', caps_xml)
+    if tag:
+        m = re.search(r'\bdefault=["\']([^"\']+)["\']', tag.group(0))
+        if m:
+            return m.group(1)
+    return None

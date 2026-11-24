@@ -37,9 +37,31 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 STATIC_DIR = Path(__file__).parent / "static"
 NEARBY_RADIUS_KM = 800  # aurora high in the sky can be seen low on the horizon from this far
 
+# Friendly service names for 503 messages. Only the key's kind is used, never the whole key,
+# because per-location keys contain coordinates and must never be echoed back or logged.
+SERVICE_NAMES = {
+    "ovation": "Aurora forecast",
+    "kp_1m": "Kp index",
+    "kp_3h": "Kp index",
+    "kp_forecast": "Kp index",
+    "iss_tle": "ISS orbit",
+    "iss_snap": "ISS position",
+    "wx": "Weather",
+    "clouds": "Cloud imagery",
+}
+
+
+def _service_name(key: str) -> str:
+    return SERVICE_NAMES.get(key.split(":", 1)[0], "Space-weather")
+
 
 def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
+
+
+def _age(seconds: float) -> float:
+    """Cache ages are reported to one decimal place so a just-expired entry is not shown as 0."""
+    return round(max(0.0, seconds), 1)
 
 
 def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str | None = None,
@@ -71,26 +93,36 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
     if "*" not in settings.allowed_hosts:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
 
-    async def cached(key: str, ttl: int, loader, store: TTLCache = cache):
+    async def cached(key: str, ttl: int, loader, store: TTLCache = cache,
+                     max_stale: float | None = None):
+        """Fetch through a cache and return ``(value, stale, age_seconds)``.
+
+        A failure is turned into a 503 whose message names only the data kind, so a
+        per-location key can never leak coordinates into the response body.
+        """
         try:
-            return await store.get(key, ttl, loader)
-        except (httpx.HTTPError, ValueError) as exc:
-            # Per-user keys contain coordinates: never write those to the log (privacy).
+            return await store.get(key, ttl, loader, max_stale=max_stale)
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            # Per-user keys contain coordinates: only log the kind for those (privacy).
             log.error("Fetching %s failed: %s", key if store is cache else key.split(":")[0],
                       type(exc).__name__)
-            raise HTTPException(503, f"NOAA data for '{key}' is currently unavailable") from exc
+            raise HTTPException(503, f"{_service_name(key)} is currently unavailable") from exc
 
-    async def grid() -> tuple[AuroraGrid, bool]:
-        return await cached("ovation", settings.ttl_ovation, state["noaa"].ovation)
+    async def grid() -> tuple[AuroraGrid, bool, float]:
+        return await cached("ovation", settings.ttl_ovation, state["noaa"].ovation,
+                            max_stale=settings.max_stale_noaa)
 
-    async def kp_summary() -> tuple[dict[str, Any], bool]:
+    async def kp_summary() -> tuple[dict[str, Any], bool, float]:
         noaa: NoaaClient = state["noaa"]
-        (now_1m, s1), (hist, s2), (fc, s3) = await asyncio.gather(
-            cached("kp_1m", settings.ttl_kp_1m, noaa.kp_1m),
-            cached("kp_3h", settings.ttl_kp_3h, noaa.kp_3h),
-            cached("kp_forecast", settings.ttl_kp_3h, noaa.kp_forecast),
+        (now_1m, s1, a1), (hist, s2, a2), (fc, s3, a3) = await asyncio.gather(
+            cached("kp_1m", settings.ttl_kp_1m, noaa.kp_1m,
+                   max_stale=settings.max_stale_noaa),
+            cached("kp_3h", settings.ttl_kp_3h, noaa.kp_3h,
+                   max_stale=settings.max_stale_noaa),
+            cached("kp_forecast", settings.ttl_kp_3h, noaa.kp_forecast,
+                   max_stale=settings.max_stale_noaa),
         )
-        return build_kp_summary(now_1m, hist, fc), s1 or s2 or s3
+        return build_kp_summary(now_1m, hist, fc), (s1 or s2 or s3), max(a1, a2, a3)
 
     # ------------------------------------------------------------------ API routes
 
@@ -101,12 +133,12 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
 
     @app.get("/api/kp")
     async def kp():
-        summary, stale = await kp_summary()
-        return {**summary, "stale": stale, "source": "NOAA SWPC"}
+        summary, stale, age = await kp_summary()
+        return {**summary, "stale": stale, "age_seconds": _age(age), "source": "NOAA SWPC"}
 
     @app.get("/api/aurora")
     async def aurora():
-        g, stale = await grid()
+        g, stale, age = await grid()
         return {
             "observation_time": _iso(g.observation_time),
             "forecast_time": _iso(g.forecast_time),
@@ -115,24 +147,25 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             "data": g.encoded(),
             "hemisphere_max": g.hemisphere_max(),
             "stale": stale,
+            "age_seconds": _age(age),
         }
 
     @app.get("/api/regions")
     async def regions():
-        g, stale = await grid()
+        g, stale, age = await grid()
         return {"forecast_time": _iso(g.forecast_time), "regions": summarize_regions(g),
-                "stale": stale}
+                "stale": stale, "age_seconds": _age(age)}
 
     @app.get("/api/location")
     async def location(lat: float = Query(..., ge=-90, le=90),
                        lon: float = Query(..., ge=-180, le=180)):
-        g, stale = await grid()
+        g, stale, age = await grid()
         here = g.value(lat, lon)
         near_val, near_lat, near_lon = g.max_within(lat, lon, NEARBY_RADIUS_KM)
         elev = sun_elevation(lat, lon)
         dark = sky_darkness(elev)
         try:
-            summary, _ = await kp_summary()
+            summary, _, _ = await kp_summary()
             current_kp = summary["current"]
         except HTTPException:
             current_kp = None
@@ -166,6 +199,7 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             "forecast_time": _iso(g.forecast_time),
             "computed_at": datetime.now(timezone.utc).isoformat(),
             "stale": stale,
+            "age_seconds": _age(age),
         }
 
     # ------------------------------------------------------------------ ISS
@@ -182,12 +216,30 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
                 last_error = exc
         raise last_error or ValueError("No ISS TLE source")
 
+    async def iss_snapshot() -> tuple[dict[str, Any], bool, float]:
+        tracker, tle_stale, tle_age = await cached(
+            "iss_tle", settings.ttl_iss_tle, load_iss, max_stale=settings.max_stale_noaa)
+
+        async def load_snapshot():
+            return tracker.snapshot()  # SGP4 is synchronous; run it on the event loop as before
+
+        # The snapshot is observer-independent, so one propagation serves every client. SGP4
+        # errors become a 503 (or a snapshot no older than two minutes if one is cached).
+        snap, snap_stale, snap_age = await cached(
+            "iss_snap", settings.ttl_iss_snapshot, load_snapshot, max_stale=120)
+        return snap, tle_stale or snap_stale, max(tle_age, snap_age)
+
     @app.get("/api/iss")
     async def iss(lat: float | None = Query(None, ge=-90, le=90),
                   lon: float | None = Query(None, ge=-180, le=180)):
-        tracker, stale = await cached("iss_tle", settings.ttl_iss_tle, load_iss)
-        observer = (lat, lon) if lat is not None and lon is not None else None
-        return {**tracker.snapshot(observer=observer), "stale": stale}
+        snap, stale, age = await iss_snapshot()
+        out = dict(snap)
+        if lat is not None and lon is not None:
+            # Cheap per-request observer block; the expensive snapshot itself is shared.
+            distance = haversine_km(lat, lon, snap["lat"], snap["lon"])
+            out["observer"] = {"distance_km": round(distance),
+                               "in_view": distance <= snap["footprint_km"]}
+        return {**out, "stale": stale, "age_seconds": _age(age)}
 
     # ------------------------------------------------------------------ weather & clouds
 
@@ -199,11 +251,14 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             r = await state["client"].get(settings.open_meteo_url, timeout=settings.http_timeout, params={
                 "latitude": lat_r, "longitude": lon_r, "current": CURRENT_FIELDS,
                 "hourly": HOURLY_FIELDS, "forecast_hours": 30, "timezone": "auto",
+                # Epoch seconds are unambiguous across a DST change; ISO local times are not.
+                "timeformat": "unixtime",
             })
             r.raise_for_status()
             return r.json()
-        data, stale = await cached(f"wx:{lat_r},{lon_r}", settings.ttl_weather, load, user_cache)
-        return {**summarize_weather(data, lat, lon), "stale": stale}
+        data, stale, age = await cached(f"wx:{lat_r},{lon_r}", settings.ttl_weather, load,
+                                        user_cache, max_stale=settings.max_stale_weather)
+        return {**summarize_weather(data, lat, lon), "stale": stale, "age_seconds": _age(age)}
 
     @app.get("/api/clouds")
     async def clouds():
@@ -212,11 +267,12 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             r.raise_for_status()
             return parse_cloud_time(r.text)
         try:
-            image_time, stale = await cache.get("clouds", settings.ttl_clouds, load)
-        except httpx.HTTPError:
-            image_time, stale = None, True
+            image_time, stale, age = await cache.get("clouds", settings.ttl_clouds, load,
+                                                     max_stale=settings.max_stale_noaa)
+        except (httpx.HTTPError, ValueError):
+            image_time, stale, age = None, True, 0.0
         return {"wms_url": settings.cloud_wms_url, "layer": settings.cloud_layer,
-                "time": image_time, "stale": stale,
+                "time": image_time, "stale": stale, "age_seconds": _age(age),
                 "attribution": "Clouds © EUMETSAT (geostationary IR 10.8 µm composite)"}
 
     # ------------------------------------------------------------------ feedback
@@ -234,10 +290,14 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             log.error("Feedback storage is full (%s)", exc)
             raise HTTPException(503, "Feedback can't be accepted right now — please try again later.") from exc
         forwarded = False
-        if settings.feedback_forward_url:
+        # Guard against a forwarding loop: if another SolarRT instance already forwarded this
+        # entry, store it here but do not send it on again (a misconfiguration fails safe).
+        already_forwarded = request.headers.get("x-solarrt-forwarded") == "1"
+        if settings.feedback_forward_url and not already_forwarded:
             try:
-                r = await state["client"].post(settings.feedback_forward_url, json=fb.model_dump(),
-                                                timeout=settings.http_timeout)
+                r = await state["client"].post(
+                    settings.feedback_forward_url, json=fb.model_dump(),
+                    headers={"X-SolarRT-Forwarded": "1"}, timeout=settings.http_timeout)
                 forwarded = r.status_code < 300
             except httpx.HTTPError as exc:
                 log.warning("Forwarding feedback failed: %s", exc)
@@ -288,7 +348,7 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
             return [{"name": r.get("display_name", ""), "lat": float(r["lat"]),
                      "lon": float(r["lon"])} for r in rows if "lat" in r and "lon" in r]
         try:
-            results, _ = await user_cache.get(f"geo:{lang}:{q.strip().lower()}", settings.ttl_geocode, load)
+            results, _, _ = await user_cache.get(f"geo:{lang}:{q.strip().lower()}", settings.ttl_geocode, load)
         except (httpx.HTTPError, ValueError, KeyError) as exc:
             raise HTTPException(503, "Place search is currently unavailable") from exc
         return {"results": results}
@@ -307,7 +367,7 @@ def create_app(transport: httpx.AsyncBaseTransport | None = None, data_dir: str 
                      or a.get("state") or "")
             return ", ".join(p for p in (place, a.get("country")) if p) or None
         try:
-            name, _ = await user_cache.get(key, settings.ttl_geocode, load)
+            name, _, _ = await user_cache.get(key, settings.ttl_geocode, load)
         except (httpx.HTTPError, ValueError) as exc:
             raise HTTPException(503, "Reverse geocoding is currently unavailable") from exc
         return {"name": name}

@@ -1,11 +1,14 @@
 import base64
+import time
 
+import httpx
 from fastapi.testclient import TestClient
 
+from solarrt import api as api_module
 from solarrt.api import create_app
-from solarrt.config import settings
+from solarrt.config import Settings, settings
 from solarrt.regions import REGIONS
-from tests.conftest import fake_noaa
+from tests.conftest import ROUTES, fake_noaa, load
 
 
 def test_health(client):
@@ -57,3 +60,39 @@ def test_noaa_down_returns_503():
     with TestClient(create_app(transport=fake_noaa(fail={settings.ovation_url}))) as c:
         r = c.get("/api/aurora")
         assert r.status_code == 503 and "unavailable" in r.json()["detail"]
+
+
+def test_kp_marks_stale_data_and_reports_age(monkeypatch, tmp_path):
+    state = {"fail": False}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url).split("?")[0]
+        if state["fail"]:
+            return httpx.Response(502)
+        return httpx.Response(200, json=load(ROUTES[url]))
+
+    # Zero TTLs make the second request attempt a refresh, which then fails.
+    monkeypatch.setattr(api_module, "settings",
+                        Settings(ttl_kp_1m=0, ttl_kp_3h=0, ttl_ovation=0))
+    with TestClient(api_module.create_app(transport=httpx.MockTransport(handler),
+                                          data_dir=str(tmp_path))) as c:
+        first = c.get("/api/kp").json()
+        assert first["stale"] is False and first["age_seconds"] == 0
+
+        state["fail"] = True
+        time.sleep(0.05)
+        second = c.get("/api/kp").json()
+        assert second["stale"] is True
+        assert second["age_seconds"] > 0
+        assert second["current"]["kp"] == first["current"]["kp"]
+
+
+def test_weather_503_hides_coordinates_and_blames_the_right_service():
+    with TestClient(create_app(transport=fake_noaa(fail={settings.open_meteo_url}))) as c:
+        r = c.get("/api/weather", params={"lat": 57.1234, "lon": -2.5678})
+        assert r.status_code == 503
+        body = r.text
+        assert "57.12" not in body and "-2.5" not in body
+        assert "NOAA" not in body
+        assert "Weather" in r.json()["detail"]
+

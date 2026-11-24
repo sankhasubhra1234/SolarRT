@@ -20,6 +20,11 @@ WGS84_A = 6378.137  # km
 WGS84_F = 1 / 298.257223563
 EARTH_MEAN_RADIUS = 6371.0
 
+# One full orbit of ground track, quoted by the UI and README (P0-2). Keep all three in sync.
+TRACK_PAST_MIN = 46
+TRACK_FUTURE_MIN = 46
+TRACK_STEP_S = 60
+
 
 @dataclass
 class Tle:
@@ -85,7 +90,8 @@ class IssTracker:
         return {"lat": lat, "lon": lon, "alt_km": alt, "speed_kmh": speed}
 
     def snapshot(self, now: datetime | None = None, observer: tuple[float, float] | None = None,
-                 past_min: int = 46, future_min: int = 46, step_s: int = 60) -> dict[str, Any]:
+                 past_min: int = TRACK_PAST_MIN, future_min: int = TRACK_FUTURE_MIN,
+                 step_s: int = TRACK_STEP_S) -> dict[str, Any]:
         now = now or datetime.now(timezone.utc)
         pos = self.position(now)
         # Radius of the area on the ground from which the ISS is above the horizon.

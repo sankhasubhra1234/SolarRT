@@ -87,13 +87,13 @@ Write the answers here when known; several items depend on them.
 
 | # | Question | Default if undecided |
 |---|---|---|
-| D1 | ISS track window: 46 min past + 46 min future (one orbit), or 45 past + 95 future? | **46 / 46** and fix the README |
+| D1 | ISS track window: 46 min past + 46 min future (one orbit), or 45 past + 95 future? | **46 / 46** and fix the README — *adopted 24 Nov 2026* |
 | D2 | Minimum supported Python: 3.10, 3.13 or 3.14? | **3.13** for Docker/CI, allow 3.10+ for library use |
 | D3 | Licence: MIT or Apache-2.0? | **MIT** |
 | D4 | Public contact e-mail and domain for privacy policy + Nominatim User-Agent | Use the deployed domain + a real mailbox before go-live |
 | D5 | CORS: document the Capacitor assumption, or add configurable origins? | **Both** — document now, optional env later |
-| D6 | How long may stale data be shown before "unavailable"? | **6 h** for NOAA, **1 h** for weather |
-| D7 | What is the next flagship feature: tray mode, ISS passes, or solar wind? | **ISS passes** (highest user value per effort) |
+| D6 | How long may stale data be shown before "unavailable"? | **6 h** for NOAA, **1 h** for weather — *adopted 24 Nov 2026* |
+| D7 | What is the next flagship feature: tray mode, ISS passes, or solar wind? | **ISS passes** (highest user value per effort) — *adopted 24 Nov 2026* |
 
 ---
 
@@ -122,7 +122,10 @@ Status: `- [ ]` not started · `- [x]` done. Add the date and a one-line note wh
 
 These affect what users believe about the data. Do these first.
 
-### - [ ] P0-1 · Surface stale data, and cap how old it can be
+### - [x] P0-1 · Surface stale data, and cap how old it can be
+**Done:** 24 Nov 2026 — `TTLCache.get()` returns `(value, stale, age_seconds)` and enforces
+`max_stale` (6 h NOAA, 1 h weather). Every data endpoint reports `age_seconds`; `app.js` no
+longer says “Updated” for stale data and shows “Data from HH:MM · stale” instead.
 **Priority:** P0 · **Effort:** S–M · **Files:** `solarrt/cache.py`, `solarrt/api.py`,
 `solarrt/static/app.js`, `tests/test_security.py`
 
@@ -150,7 +153,9 @@ header to “Updated HH:MM” on any HTTP 200. A six-hour-old aurora grid theref
 
 ---
 
-### - [ ] P0-2 · Make the ISS track window consistent
+### - [x] P0-2 · Make the ISS track window consistent
+**Done:** 24 Nov 2026 — `iss.TRACK_PAST_MIN`/`TRACK_FUTURE_MIN` are 46/46 and drive
+`snapshot()`; the README now matches the UI (“last 46 minutes … next 46 minutes, one orbit”).
 **Priority:** P0 · **Effort:** S · **Files:** `README.md:8`, `solarrt/static/index.html:146`,
 `solarrt/iss.py` (`snapshot`)
 
@@ -170,7 +175,11 @@ window in `solarrt/config.py` so docs can quote it.
 
 ---
 
-### - [ ] P0-3 · Cache the ISS snapshot and handle SGP4 errors
+### - [x] P0-3 · Cache the ISS snapshot and handle SGP4 errors
+**Done:** 24 Nov 2026 — the observer-independent snapshot is cached for
+`ttl_iss_snapshot` (10 s); the observer distance/visibility is added per request. SGP4
+`ValueError`s become HTTP 503 (“ISS position is currently unavailable”) or a snapshot up to
+two minutes old. Tests assert one propagation per cache window and the 503 path.
 **Priority:** P0 · **Effort:** S · **Files:** `solarrt/api.py` (`/api/iss`),
 `solarrt/iss.py` (`snapshot`)
 
@@ -196,7 +205,11 @@ becomes an unhandled 500.
 
 ---
 
-### - [ ] P0-4 · Make weather hourly times DST-safe
+### - [x] P0-4 · Make weather hourly times DST-safe
+**Done:** 24 Nov 2026 — `/api/weather` requests Open-Meteo with `timeformat=unixtime`, so
+hourly times are UTC epoch seconds. `summarize_weather` converts epochs directly and keeps an
+ISO wall-clock fallback for old cached payloads and fixtures. A Europe/London spring-forward
+test covers the transition.
 **Priority:** P0 · **Effort:** M · **Files:** `solarrt/api.py` (`/api/weather` params),
 `solarrt/weather.py` (`summarize_weather`), `tests/test_weather_feedback.py`
 
@@ -219,7 +232,10 @@ the location zone (loses the server-known zone label unless fetched separately).
 
 ---
 
-### - [ ] P0-5 · Stop echoing coordinates in 503 responses
+### - [x] P0-5 · Stop echoing coordinates in 503 responses
+**Done:** 24 Nov 2026 — 503 messages now name only the service
+(`Aurora forecast`, `Kp index`, `ISS orbit`, `Weather`, …), derived from the key's prefix.
+Log redaction is unchanged and the privacy test stays green.
 **Priority:** P0 · **Effort:** S · **Files:** `solarrt/api.py` (`cached`, around the current
 line 81)
 
@@ -243,7 +259,10 @@ coordinates and wrongly blames NOAA for an Open-Meteo failure.
 
 ---
 
-### - [ ] P0-6 · Guard feedback forwarding against loops
+### - [x] P0-6 · Guard feedback forwarding against loops
+**Done:** 24 Nov 2026 — forwarded requests carry `X-SolarRT-Forwarded: 1`; an incoming
+request with that header is stored locally but never forwarded again. The test transport sees
+exactly one forward.
 **Priority:** P0 · **Effort:** S · **Files:** `solarrt/api.py` (`post_feedback`),
 `tests/test_weather_feedback.py`
 
@@ -262,7 +281,11 @@ each hop re-forwards until the rate limiter stops it. A misconfiguration should 
 
 ---
 
-### - [ ] P0-7 · Harden the XML and numeric parsers
+### - [x] P0-7 · Harden the XML and numeric parsers
+**Done:** 24 Nov 2026 — `parse_cloud_time` uses `ElementTree` (attribute order and quoting no
+longer matter) with a regex fallback for malformed documents; `parse_ovation` accepts floats
+and numeric strings and rounds before clamping. Tests cover reordered/single-quoted/missing
+dimensions and a float OVATION cell.
 **Priority:** P0 · **Effort:** S · **Files:** `solarrt/weather.py` (`parse_cloud_time`),
 `solarrt/noaa.py` (`parse_ovation`), tests
 
