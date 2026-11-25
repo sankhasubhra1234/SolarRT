@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SolarRT: A Little Closer to the Skies | SolarRT Blog</title>
+  <meta name="description" content="Sankha Subhra Debnath explains how he built SolarRT to track aurora forecasts, local observing conditions and the International Space Station.">
+  <meta name="author" content="Sankha Subhra Debnath">
+  <link rel="canonical" href="https://medium.com/@SankhaDn/solarrt-a-little-closer-to-the-skies-d5192f22c039">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="SolarRT: A Little Closer to the Skies">
+  <meta property="og:description" content="Sankha Subhra Debnath explains how he built SolarRT to track aurora forecasts, local observing conditions and the International Space Station.">
+  <meta property="og:url" content="https://solarrt.sankhadn.workers.dev/static/blog/a-little-closer-to-the-skies">
+  <meta property="og:image" content="https://solarrt.sankhadn.workers.dev/static/blog/aurora-dashboard.webp">
+  <meta property="article:published_time" content="2026-11-25T10:15:18Z">
+  <link rel="icon" href="/static/favicon.svg">
+  <style>
+    :root { color-scheme: light dark; --accent: light-dark(#12604e,#87e2c2); }
+    * { box-sizing: border-box; }
+    body { margin: auto; max-width: 50rem; padding: 1.4rem clamp(1rem,5vw,3rem) 4rem; font: 1.12rem/1.68 Georgia,serif; }
+    nav, .byline, footer, figcaption { font-family: system-ui,sans-serif; font-size: .94rem; }
+    nav { border-bottom: 1px solid currentColor; padding-bottom: .8rem; }
+    a { color: var(--accent); text-underline-offset: .16em; }
+    h1,h2 { line-height: 1.15; text-wrap: balance; }
+    h1 { font-size: clamp(2.2rem,6vw,3.7rem); margin: 2.4rem 0 1rem; }
+    h2 { margin-top: 2.4rem; }
+    figure { margin: 2rem 0; }
+    img { display: block; max-width: 100%; height: auto; margin: auto; }
+    figcaption { margin-top: .65rem; }
+    footer { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <nav aria-label="Blog navigation"><a href="/">← SolarRT dashboard</a> / Blog</nav>
+  <main><article>
+    <header>
+      <h1>SolarRT: A Little Closer to the Skies</h1>
+      <p class="byline">Sankha Subhra Debnath · <time datetime="2026-11-25">25 November 2026</time> · <a href="https://medium.com/@SankhaDn/solarrt-a-little-closer-to-the-skies-d5192f22c039">Read on Medium</a></p>
+    </header>
+<p class="intro">
+<a href="https://solarrt.sankhadn.workers.dev/">
+<em>Solar RT</em>
+</a>
+<em> (Solar Real Time) by S. Debnath. Building a free web application for live aurora forecasts, space weather monitoring and International Space Station tracking.</em>
+</p>
+<p>In 2024, while studying planetary science at the University of Aberdeen, I started working on a small Python application to monitor solar and geomagnetic activity. Two years later, at nearly three in the morning on 25 November 2026, I finally launched its first web version. I call it SolarRT (Solar Real Time).</p>
+<p>With my background in electronics and communication engineering and planetary science, I have developed a particular interest in space weather and the electromagnetic environment of our planet. During my master’s, I worked on building a scientific instrument to measure Schumann resonances, the Earth-ionosphere cavity&#39;s natural electromagnetic resonances. Living in Scotland also gave me an opportunity to appreciate the Northern Lights and develop a greater interest in the science behind them.</p>
+<p>Several really good websites and applications already monitor auroras, including Glendale and Aurora Alert, which are available for free. The idea behind SolarRT was simply to build my own application. I was curious about how these scientific datasets could be brought together, how aurora forecasts could be interpreted for a particular location and how I could present all this information through a single interface.</p>
+<figure>
+<img src="aurora-dashboard.webp" alt="SolarRT dashboard with the auroral oval, cloud imagery and ISS position" width="1600" height="970" loading="lazy">
+<figcaption>
+<em>Figure 1: SolarRT dashboard displaying global aurora forecasts, satellite cloud imagery, local observing conditions and the live position of the International Space Station.</em>
+</figcaption>
+</figure>
+<h2>What is SolarRT?</h2>
+<p>
+<a href="https://solarrt.sankhadn.workers.dev/">SolarRT</a> is a free web application for monitoring auroral activity, geomagnetic conditions, and local weather, along with a live tracker for the International Space Station (ISS). The application is accessible through a web browser and requires no account.</p>
+<p>One of the things I wanted to address while developing SolarRT was the difference between an aurora forecast and the actual possibility of observing an aurora from a particular location. A strong geomagnetic storm may produce favourable conditions, but factors such as cloud cover, daylight and the geographical position of the auroral oval can determine whether you see anything at all. This is particularly relevant in Scotland, where the weather does not always cooperate.</p>
+<p>The main interface uses NOAA’s OVATION aurora forecasting model to visualise the geographical distribution of auroral activity. Alongside the map, users can monitor the planetary Kp index, which describes disturbances in Earth’s magnetic field on a scale from 0 to 9. A Kp value of 5 or above corresponds to geomagnetic storm conditions, although a higher Kp value alone does not guarantee that an aurora will be visible from your location.</p>
+<figure>
+<img src="kp-index.webp" alt="SolarRT Kp index chart displaying observed, estimated and forecast geomagnetic activity with the G1 storm threshold." width="540" height="474" loading="lazy">
+<figcaption>
+<em>Figure 2: SolarRT Kp index dashboard showing observed, estimated and forecast geomagnetic activity, including the G1 geomagnetic storm threshold.</em>
+</figcaption>
+</figure>
+<p>The application distinguishes between the probability of auroral activity directly overhead and the possibility of seeing an aurora towards the horizon. An observer may be several hundred kilometres from the auroral oval and still see an aurora under favourable conditions.</p>
+<h2>Can I see the Northern Lights tonight?</h2>
+<p>Suppose you are in Aberdeen and the forecast calls for a geomagnetic storm later in the evening. You can open SolarRT, select Aberdeen as your location and check the predicted auroral activity, the Kp forecast and the local weather conditions. You can also select other locations directly on the map, which could be useful if you are planning to travel somewhere with clearer skies.</p>
+<p>The weather section uses data from Open-Meteo to display local cloud cover, atmospheric visibility and periods of darkness. It also includes a satellite cloud imagery layer from EUMETSAT, allowing users to explore atmospheric conditions over a much larger geographical area.</p>
+<figure>
+<img src="aberdeen-forecast.webp" alt="Local aurora visibility forecast for Aberdeen showing daylight, cloud cover and the 24-hour weather outlook." width="523" height="705" loading="lazy">
+<figcaption>
+<em>Figure 3: Location-specific aurora probability, daylight conditions and 24-hour cloud-cover forecast for Aberdeen, Scotland.</em>
+</figcaption>
+</figure>
+<p>The screenshot above is a good example of why local weather matters. At the time it was captured, Aberdeen was experiencing daylight and 100% cloud cover, with no predicted dark, clear period in the following 24 hours. Having access to this information alongside the aurora forecast helps put the space weather data into context.</p>
+<p>I have also included a customisable alert system. Users can set their preferred aurora probability or Kp threshold and choose whether they want to receive notifications only when it is dark or when the skies are sufficiently clear. Currently, the application must remain open for alerts to work, which I would like to improve in future versions.</p>
+<figure>
+<img src="aurora-alerts.webp" alt="Alert settings for aurora visibility and geomagnetic activity" width="513" height="585" loading="lazy">
+<figcaption>
+<em>Figure 4: Customisable Northern Lights alerts based on aurora probability, horizon visibility, geomagnetic activity and local sky conditions.</em>
+</figcaption>
+</figure>
+<p>I think this could be particularly useful for people interested in astrophotography, amateur astronomy or anyone travelling to northern regions hoping to see the aurora. Space weather forecasts are inherently uncertain, so treat the information as a guide when planning observations.</p>
+<h2>Live International Space Station tracking</h2>
+<p>Another feature I wanted to include was live tracking of the International Space Station. Using orbital data from CelesTrak and the SGP4 orbital propagation model, the application calculates the ISS position and displays its recent and predicted orbital trajectory.</p>
+<p>You can follow the ISS on the map and check its altitude, speed and distance from your location. The application also displays the geographical region from which the ISS is above the horizon and indicates whether the station is currently sunlit. Under suitable lighting conditions, you can observe the station with the naked eye, usually shortly after sunset or before sunrise.</p>
+<figure>
+<img src="iss-tracker.webp" alt="" width="1260" height="430" loading="lazy">
+<figcaption>
+<em>Figure 5: Live ISS tracker showing orbital position, altitude, velocity, distance from the observer and predicted orbital trajectory.</em>
+</figcaption>
+</figure>
+<p>I have always found it fascinating that a small point of light moving across the night sky can be a spacecraft carrying people around the Earth at approximately 28,000 kilometres per hour.</p>
+<h2>The experience of building SolarRT</h2>
+<p>Developing SolarRT has been a big learning experience for me, especially in web development and deployment. My previous projects have largely revolved around electronics, scientific instrumentation, and data analysis, so building an application that others could access introduced me to several unfamiliar technologies.</p>
+<p>I had never used Cloudflare before, and getting the application online took much longer than I expected. With the help of OpenAI Codex, I spent time understanding the deployment environment, debugging errors and making the necessary modifications to get everything running. It was quite satisfying to finally open the website and realise that something I had been working on could now be accessed by anyone.</p>
+<h2>Where does the scientific data come from?</h2>
+<p>SolarRT uses several publicly available data sources and services:</p>
+<ul>
+<li>NOAA Space Weather Prediction Center for aurora forecasts and geomagnetic activity.</li>
+<li>Open-Meteo for local atmospheric and weather forecasts.</li>
+<li>EUMETSAT for satellite-derived cloud imagery.</li>
+<li>CelesTrak for orbital data.</li>
+<li>OpenStreetMap and Esri for geographic information and mapping.</li>
+</ul>
+<p>A considerable amount of scientific information is freely available, and part of what motivated me throughout this project was exploring what we could build with these resources.</p>
+<h2>What I would like to do next</h2>
+<p>SolarRT is still in its first public version. I would like to experiment further with solar wind measurements, historical geomagnetic data and the relationship between auroral activity and local observing conditions. Integrating light pollution data and lunar illumination would also be interesting additions, particularly for people who use the application for astrophotography.</p>
+<p>At some point, I would like to explore whether historical observations of auroras could help develop and evaluate a more detailed model for local visibility. That would be an interesting research project in itself.</p>
+<p>For now, I would love for people to try the application and tell me what they think. I have included a small feedback section at the bottom of the website where you can report bugs, suggest features or share your experience. I am sure there are things we can do better, and I am looking forward to working on them.</p>
+<p>
+<a href="https://solarrt.sankhadn.workers.dev/">SolarRT</a> is available for free at:</p>
+<p>
+<a href="https://solarrt.sankhadn.workers.dev/">SolarRT</a>
+</p>
+<figure>
+<img src="landing-page.webp" alt="SolarRT landing page" width="1600" height="850" loading="lazy">
+<figcaption>
+<a href="https://solarrt.sankhadn.workers.dev/">Website landing page</a>
+</figcaption>
+</figure>
+<p>Thank you for reading, and clear skies!</p>
+<p>
+<em>Sankha Subhra Debnath</em>
+</p>
+  </article></main>
+  <footer><a href="/">Return to SolarRT</a></footer>
+</body>
+</html>
