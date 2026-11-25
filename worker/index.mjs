@@ -5,8 +5,8 @@ const cloudRoot="https://view.eumetsat.int/geoserver";
 const shared=new Map();
 class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
 function json(value,status=200){return Response.json(value,{status,headers:{...constants.headers,"Cache-Control":"no-store"}});}
-async function source(url,ttl,format="json"){
-  const res=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{"User-Agent":"SolarRT/2 (+https://github.com/sankhasubhra1234/SolarRT)"},cf:{cacheEverything:true,cacheTtlByStatus:{"200-299":ttl,"400-599":0}}});
+async function source(url,ttl,format="json",timeout=15000){
+  const res=await fetch(url,{signal:AbortSignal.timeout(timeout),headers:{"User-Agent":"SolarRT/2 (+https://github.com/sankhasubhra1234/SolarRT)"},cf:{cacheEverything:true,cacheTtlByStatus:{"200-299":ttl,"400-599":0}}});
   if(!res.ok)throw Error("Upstream failed");
   return format==="text"?res.text():res.json();
 }
@@ -105,9 +105,10 @@ export default {async fetch(req,env){
     if(p==="/api/iss"){
       const coords=q.has("lat")||q.has("lon")?coordinates(q):null;
       const tle=await cached("tle",21600,async()=>{
-        for(const url of ["https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE","https://api.wheretheiss.at/v1/satellites/25544/tles?format=text"]){
-          const t=await source(url,21600,"text").catch(()=>"");
-          if(/^1 25544/m.test(t)&&/^2 25544/m.test(t))return t;
+        for(const url of ["https://www.amsat.org/tle/current/nasabare.txt","https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE","https://api.wheretheiss.at/v1/satellites/25544/tles?format=text"]){
+          const t=await source(url,21600,"text",3500).catch(()=>"");
+          const pair=t.match(/^1 25544[^\r\n]*\r?\n2 25544[^\r\n]*/m);
+          if(pair)return pair[0];
         }
         throw Error("Orbit unavailable");
       },86400);
