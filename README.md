@@ -132,3 +132,5 @@ launcher.py     entry script for the packaged exe
 8. Run in the system tray so alerts keep working with the window closed
 9. ISS pass predictions ("next visible pass over you")
 10. Solar wind (Bz, speed) and X-ray flare panels from the original SolarRT
+#   S o l a r R T  
+ 
