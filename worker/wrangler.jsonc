@@ -1,0 +1,12 @@
+{
+  "name": "solarrt",
+  "main": "index.mjs",
+  "compatibility_date": "2026-11-24",
+  "workers_dev": true,
+  "build": {"command": "node assets.mjs"},
+  "assets": {"directory": "./public", "binding": "ASSETS"},
+  "durable_objects": {"bindings":[{"name":"STORE","class_name":"SolarStore"}]},
+  "migrations": [{"tag":"v1","new_sqlite_classes":["SolarStore"]}],
+  "ratelimits":[{"name":"API_LIMIT","namespace_id":"1001","simple":{"limit":240,"period":60}},{"name":"POST_LIMIT","namespace_id":"1002","simple":{"limit":5,"period":60}}],
+  "observability": {"enabled":false}
+}

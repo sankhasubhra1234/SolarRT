@@ -1,0 +1,1 @@
+{"name":"solarrt-worker","private":true,"type":"module","dependencies":{"satellite.js":"7.2.0"},"devDependencies":{"wrangler":"4.168.0"}}

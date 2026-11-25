@@ -1,0 +1,168 @@
+{
+  "regions": [
+    {
+      "id": "alaska",
+      "name": "Alaska",
+      "hemisphere": "north",
+      "south": 54,
+      "north": 71,
+      "west": -168,
+      "east": -130
+    },
+    {
+      "id": "canada",
+      "name": "Northern Canada",
+      "hemisphere": "north",
+      "south": 55,
+      "north": 75,
+      "west": -140,
+      "east": -60
+    },
+    {
+      "id": "usa-north",
+      "name": "Northern USA",
+      "hemisphere": "north",
+      "south": 41,
+      "north": 49,
+      "west": -124,
+      "east": -67
+    },
+    {
+      "id": "greenland",
+      "name": "Greenland",
+      "hemisphere": "north",
+      "south": 60,
+      "north": 83,
+      "west": -73,
+      "east": -12
+    },
+    {
+      "id": "iceland",
+      "name": "Iceland",
+      "hemisphere": "north",
+      "south": 63,
+      "north": 67,
+      "west": -25,
+      "east": -13
+    },
+    {
+      "id": "uk-ireland",
+      "name": "UK & Ireland",
+      "hemisphere": "north",
+      "south": 50,
+      "north": 61,
+      "west": -11,
+      "east": 2
+    },
+    {
+      "id": "scandinavia",
+      "name": "Scandinavia & Finland",
+      "hemisphere": "north",
+      "south": 55,
+      "north": 71,
+      "west": 4,
+      "east": 32
+    },
+    {
+      "id": "central-europe",
+      "name": "Central Europe",
+      "hemisphere": "north",
+      "south": 45,
+      "north": 55,
+      "west": -5,
+      "east": 25
+    },
+    {
+      "id": "russia",
+      "name": "Northern Russia & Siberia",
+      "hemisphere": "north",
+      "south": 58,
+      "north": 78,
+      "west": 32,
+      "east": 180
+    },
+    {
+      "id": "tasmania",
+      "name": "Tasmania",
+      "hemisphere": "south",
+      "south": -44,
+      "north": -40,
+      "west": 144,
+      "east": 149
+    },
+    {
+      "id": "south-australia",
+      "name": "Southern Australia",
+      "hemisphere": "south",
+      "south": -39,
+      "north": -31,
+      "west": 114,
+      "east": 154
+    },
+    {
+      "id": "new-zealand",
+      "name": "New Zealand",
+      "hemisphere": "south",
+      "south": -47,
+      "north": -34,
+      "west": 166,
+      "east": 179
+    },
+    {
+      "id": "patagonia",
+      "name": "Patagonia (Argentina & Chile)",
+      "hemisphere": "south",
+      "south": -56,
+      "north": -40,
+      "west": -76,
+      "east": -62
+    },
+    {
+      "id": "antarctica",
+      "name": "Antarctica",
+      "hemisphere": "south",
+      "south": -90,
+      "north": -60,
+      "west": -180,
+      "east": 180
+    }
+  ],
+  "wmo": {
+    "0": "Clear sky",
+    "1": "Mainly clear",
+    "2": "Partly cloudy",
+    "3": "Overcast",
+    "45": "Fog",
+    "48": "Rime fog",
+    "51": "Light drizzle",
+    "53": "Drizzle",
+    "55": "Heavy drizzle",
+    "56": "Freezing drizzle",
+    "57": "Freezing drizzle",
+    "61": "Light rain",
+    "63": "Rain",
+    "65": "Heavy rain",
+    "66": "Freezing rain",
+    "67": "Freezing rain",
+    "71": "Light snow",
+    "73": "Snow",
+    "75": "Heavy snow",
+    "77": "Snow grains",
+    "80": "Rain showers",
+    "81": "Rain showers",
+    "82": "Violent rain showers",
+    "85": "Snow showers",
+    "86": "Snow showers",
+    "95": "Thunderstorm",
+    "96": "Thunderstorm with hail",
+    "99": "Thunderstorm with hail"
+  },
+  "headers": {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://server.arcgisonline.com https://view.eumetsat.int; connect-src 'self' https://get.geojs.io https://ipapi.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  }
+}
