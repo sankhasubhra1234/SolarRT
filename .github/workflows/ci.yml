@@ -14,7 +14,7 @@ jobs:
         python: ["3.13", "3.14"]
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -28,7 +28,7 @@ jobs:
   production:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm audit --prefix mobile
       - run: docker build -t solarrt:ci .
       - run: docker run -d --read-only --tmpfs /tmp -p 127.0.0.1:8000:8000 solarrt:ci
