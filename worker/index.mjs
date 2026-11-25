@@ -36,10 +36,28 @@ function coordinates(params){
 }
 function unpack(result){return {...result.data,stale:result.stale,age_seconds:result.age_seconds};}
 const health={status:"ok",app:"SolarRT",version:"2.0.0",edition:"web"};
+const usageEvents = new Set(["arrival","view","locate","pick_map","theme","about","test_alert","center_iss","iss","clouds","search"]);
 export class SolarStore{
   constructor(ctx){this.ctx=ctx;}
   async fetch(req){
     const store=this.ctx.storage,path=new URL(req.url).pathname;
+    if(path.startsWith("/count/")){
+      const event=path.slice(7);
+      if(req.method!=="POST" || !usageEvents.has(event))return json({detail:"Unknown event"},400);
+      const sql=store.sql;
+      if(!this.usageReady){
+        sql.exec("CREATE TABLE IF NOT EXISTS daily_events(day TEXT, event TEXT, total INTEGER NOT NULL, PRIMARY KEY(day,event))");
+        sql.exec(`CREATE VIEW IF NOT EXISTS daily_traffic AS SELECT day,
+          SUM(CASE WHEN event='arrival' THEN total ELSE 0 END) AS visits,
+          SUM(CASE WHEN event IN ('arrival','view') THEN total ELSE 0 END) AS page_views,
+          SUM(CASE WHEN event NOT IN ('arrival','view','search') THEN total ELSE 0 END) AS feature_clicks,
+          SUM(CASE WHEN event='search' THEN total ELSE 0 END) AS searches
+          FROM daily_events GROUP BY day ORDER BY day DESC`);
+        this.usageReady=true;
+      }
+      sql.exec("INSERT INTO daily_events VALUES(date('now'), ?, 1) ON CONFLICT(day,event) DO UPDATE SET total=total+1",event);
+      return new Response(null,{status:204});
+    }
     if(path==="/geo"){
       const now=Date.now();
       const allowed=await store.transaction(async tx=>{
@@ -88,6 +106,15 @@ export default {async fetch(req,env){
   const u=new URL(req.url),p=u.pathname,q=u.searchParams;
   if(!p.startsWith("/api/"))return env.ASSETS.fetch(req);
   try{
+    if(p.startsWith("/api/count/")){
+      if(req.method!=="POST")throw new HttpError(405,"POST required");
+      if(req.headers.get("Origin")!==u.origin)throw new HttpError(403,"Same-origin events only");
+      const event=p.slice(11);
+      if(!usageEvents.has(event))throw new HttpError(400,"Unknown event");
+      const ip=req.headers.get("CF-Connecting-IP")??"unknown";
+      if(!(await env.API_LIMIT.limit({key:"usage:"+ip})).success)throw new HttpError(429,"Too many events");
+      return await env.STORE.getByName("usage").fetch("https://internal/count/"+event,{method:"POST"});
+    }
     if(req.method!=="GET"&&!(req.method==="POST"&&p==="/api/feedback"))throw new HttpError(405,"Method not allowed");
     if(p==="/api/health")return json(health);
     const ip=req.headers.get("CF-Connecting-IP")??"unknown";
@@ -128,7 +155,7 @@ export default {async fetch(req,env){
         const xml=await source(cloudRoot+"/mumi/worldcloudmap_ir108/ows?service=WMS&version=1.3.0&request=GetCapabilities",900,"text");
         return xml.match(/<Dimension\b[^>]*\bname="time"[^>]*>/i)?.[0].match(/\bdefault="([^"]+)"/)?.[1]??null;
       }).catch(()=>({data:null,stale:true,age_seconds:0}));
-      return json({wms_url:cloudRoot+"/ows",layer:"mumi:worldcloudmap_ir108",time:result.data,stale:result.stale,age_seconds:result.age_seconds,attribution:"Clouds c EUMETSAT"});
+      return json({wms_url:cloudRoot+"/ows",layer:"mumi:worldcloudmap_ir108",time:result.data,stale:result.stale,age_seconds:result.age_seconds,attribution:"Clouds © EUMETSAT"});
     }
     if(p==="/api/geocode"||p==="/api/reverse"){
       const search=p.endsWith("geocode"),args=new URLSearchParams({format:"jsonv2"});
